@@ -1,0 +1,8 @@
+{
+  "dart.flutterHotReloadOnSave": "always",
+  "dart.flutterHotRestartOnSave": "never",
+  "files.autoSave": "onFocusChange",
+  "dart.previewHotReloadCoverageMarkers": true
+}
+
+
