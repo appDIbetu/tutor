@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../exam_taking/view/exam_taking_screen.dart';
+import '../../exam_taking/models/exam_attempt_model.dart';
 
 class Subject {
   final String id;
@@ -9,6 +10,8 @@ class Subject {
   final int durationMinutes;
   final int passMark;
   final bool isPremium;
+  final bool hasAttempted;
+  final ExamAttempt? lastAttempt;
 
   const Subject({
     required this.id,
@@ -17,6 +20,8 @@ class Subject {
     required this.durationMinutes,
     required this.passMark,
     required this.isPremium,
+    this.hasAttempted = false,
+    this.lastAttempt,
   });
 
   factory Subject.fromJson(Map<String, dynamic> json) {
@@ -27,38 +32,65 @@ class Subject {
       durationMinutes: json['durationMinutes'] as int,
       passMark: json['passMark'] as int,
       isPremium: json['isPremium'] as bool,
+      hasAttempted: json['hasAttempted'] as bool? ?? false,
+      lastAttempt: json['lastAttempt'] != null
+          ? ExamAttempt.fromJson(json['lastAttempt'] as Map<String, dynamic>)
+          : null,
     );
   }
 }
 
-Widget _buildList(BuildContext context, List<Subject> subjects) {
+Widget _buildList(
+  BuildContext context,
+  List<Subject> subjects,
+  bool userHasPremium,
+) {
   return ListView.separated(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     itemCount: subjects.length,
     separatorBuilder: (_, __) => const SizedBox(height: 12),
     itemBuilder: (context, index) {
       final subject = subjects[index];
-      final locked =
-          subject.isPremium &&
-          !(context
-                  .findAncestorWidgetOfExactType<SubjectListScreen>()
-                  ?.userHasPremium ??
-              false);
 
       return _SubjectTile(
         subject: subject,
-        locked: locked,
+        locked:
+            subject.isPremium &&
+            !userHasPremium, // Lock premium subjects for non-premium users
         onAttempt: () {
-          if (locked) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('प्रीमियम चाहिन्छ।')));
-            return;
-          }
-          // Navigate to exam taking screen
+          // Show question range selection dialog for all subjects
+          _showQuestionRangeDialog(context, subject, userHasPremium);
+        },
+      );
+    },
+  );
+}
+
+void _showQuestionRangeDialog(
+  BuildContext context,
+  Subject subject,
+  bool userHasPremium,
+) {
+  // Don't show dialog for premium subjects if user doesn't have premium
+  if (subject.isPremium && !userHasPremium) {
+    return;
+  }
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return QuestionRangeDialog(
+        subject: subject,
+        userHasPremium: userHasPremium,
+        onStartPractice: (startIndex, endIndex) {
+          Navigator.of(context).pop(); // Close dialog
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => ExamTakingScreen(examId: subject.id),
+              builder: (context) => ExamTakingScreen(
+                examId: subject.id,
+                questionStartIndex: startIndex,
+                questionEndIndex: endIndex,
+              ),
             ),
           );
         },
@@ -103,7 +135,7 @@ class SubjectListScreen extends StatelessWidget {
         ),
       ),
       body: futureSubjects == null
-          ? _buildList(context, subjects)
+          ? _buildList(context, subjects, userHasPremium)
           : FutureBuilder<List<Subject>>(
               future: futureSubjects,
               builder: (context, snapshot) {
@@ -114,7 +146,7 @@ class SubjectListScreen extends StatelessWidget {
                   return Center(child: Text('Error: ${snapshot.error}'));
                 }
                 final items = snapshot.data ?? const [];
-                return _buildList(context, items);
+                return _buildList(context, items, userHasPremium);
               },
             ),
     );
@@ -197,10 +229,6 @@ class _SubjectTile extends StatelessWidget {
                         icon: Icons.schedule,
                         label: '${subject.durationMinutes} मिनेट',
                       ),
-                      _InfoChip(
-                        icon: Icons.verified_outlined,
-                        label: 'उत्तीर्णाङ्क ${subject.passMark}',
-                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -209,9 +237,9 @@ class _SubjectTile extends StatelessWidget {
                     child: ElevatedButton.icon(
                       onPressed: onAttempt,
                       icon: const Icon(Icons.play_arrow_rounded),
-                      label: const Text(
-                        'परीक्षा दिनुहोस्',
-                        style: TextStyle(fontWeight: FontWeight.normal),
+                      label: Text(
+                        locked ? 'प्रीमियम आवश्यक' : 'अभ्यास गर्नुहोस्',
+                        style: const TextStyle(fontWeight: FontWeight.normal),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: locked
@@ -324,6 +352,26 @@ class SubjectService {
         'durationMinutes': 60,
         'passMark': 40,
         'isPremium': false,
+        'hasAttempted': true,
+        'lastAttempt': {
+          'examId': 'sub_1',
+          'examTitle': 'जीव विज्ञान परीक्षा',
+          'studentId': 'student_123',
+          'studentName': 'Dipak Shah',
+          'studentEmail': 'appdibetu@gmail.com',
+          'attemptedAt': '2024-01-15T10:30:00Z',
+          'timeTakenSeconds': 1800,
+          'totalQuestions': 5,
+          'correctCount': 4,
+          'wrongCount': 1,
+          'unattemptedCount': 0,
+          'finalMarks': 80.0,
+          'positiveMark': 4,
+          'negativeMark': 0,
+          'selectedAnswers': {'0': 0, '1': 1, '2': 0, '3': 0, '4': 1},
+          'isPassed': true,
+          'passMark': 40,
+        },
       },
       {
         'id': 'sub_2',
@@ -332,6 +380,8 @@ class SubjectService {
         'durationMinutes': 75,
         'passMark': 45,
         'isPremium': true,
+        'hasAttempted': false,
+        'lastAttempt': null,
       },
       {
         'id': 'sub_3',
@@ -340,8 +390,172 @@ class SubjectService {
         'durationMinutes': 70,
         'passMark': 42,
         'isPremium': false,
+        'hasAttempted': false,
+        'lastAttempt': null,
       },
     ];
     return payload.map((e) => Subject.fromJson(e)).toList();
+  }
+}
+
+class QuestionRangeDialog extends StatefulWidget {
+  final Subject subject;
+  final bool userHasPremium;
+  final Function(int startIndex, int endIndex) onStartPractice;
+
+  const QuestionRangeDialog({
+    super.key,
+    required this.subject,
+    required this.userHasPremium,
+    required this.onStartPractice,
+  });
+
+  @override
+  State<QuestionRangeDialog> createState() => _QuestionRangeDialogState();
+}
+
+class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
+  late int _startIndex;
+  late int _endIndex;
+  final int _maxQuestionsForAll = 20; // Maximum for all users
+
+  @override
+  void initState() {
+    super.initState();
+    final maxAllowed = _maxQuestionsForAll; // All users limited to 20
+
+    _startIndex = 1;
+    _endIndex = maxAllowed > 10 ? 10 : maxAllowed;
+
+    // Ensure start index doesn't exceed end index
+    if (_startIndex > _endIndex) {
+      _startIndex = _endIndex;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final totalQuestions = widget.subject.numberOfQuestions;
+    final maxAllowed = _maxQuestionsForAll; // All users limited to 20
+
+    return AlertDialog(
+      title: Text('प्रश्नको दायरा छान्नुहोस्'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${widget.subject.name} - कुल ${totalQuestions} प्रश्न',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 16),
+
+          // Start Index
+          Row(
+            children: [
+              const Text('सुरुको प्रश्न: '),
+              Expanded(
+                child: Slider(
+                  value: _startIndex.toDouble(),
+                  min: 1,
+                  max: maxAllowed.toDouble(),
+                  divisions: maxAllowed > 1 ? maxAllowed - 1 : null,
+                  label: _startIndex.toString(),
+                  onChanged: (value) {
+                    setState(() {
+                      _startIndex = value.round();
+                      // If start index becomes greater than end index, make end index equal to start index
+                      if (_startIndex > _endIndex) {
+                        _endIndex = _startIndex;
+                      }
+                    });
+                  },
+                ),
+              ),
+              Text('$_startIndex'),
+            ],
+          ),
+
+          // End Index
+          Row(
+            children: [
+              const Text('अन्तिम प्रश्न: '),
+              Expanded(
+                child: Slider(
+                  value: _endIndex.toDouble(),
+                  min: _startIndex.toDouble(),
+                  max: maxAllowed.toDouble(),
+                  divisions: maxAllowed > _startIndex
+                      ? maxAllowed - _startIndex
+                      : null,
+                  label: _endIndex.toString(),
+                  onChanged: (value) {
+                    setState(() {
+                      _endIndex = value.round();
+                      // If end index becomes less than start index, make start index equal to end index
+                      if (_endIndex < _startIndex) {
+                        _startIndex = _endIndex;
+                      }
+                    });
+                  },
+                ),
+              ),
+              Text('$_endIndex'),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+          Text(
+            'कुल प्रश्न: ${_endIndex - _startIndex + 1}',
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
+
+          if (totalQuestions > _maxQuestionsForAll) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: Colors.orange.shade700,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'अधिकतम $_maxQuestionsForAll प्रश्न मात्र अभ्यास गर्न सकिन्छ।',
+                      style: TextStyle(
+                        color: Colors.orange.shade700,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('रद्द गर्नुहोस्'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            widget.onStartPractice(
+              _startIndex - 1,
+              _endIndex - 1,
+            ); // Convert to 0-based index
+          },
+          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+          child: const Text('अभ्यास सुरु गर्नुहोस्'),
+        ),
+      ],
+    );
   }
 }

@@ -10,13 +10,24 @@ import '../widgets/question_options.dart';
 
 class ExamTakingScreen extends StatelessWidget {
   final String examId;
+  final int? questionStartIndex;
+  final int? questionEndIndex;
 
-  const ExamTakingScreen({super.key, required this.examId});
+  const ExamTakingScreen({
+    super.key,
+    required this.examId,
+    this.questionStartIndex,
+    this.questionEndIndex,
+  });
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<ExamDetails>(
-      future: ExamService.fetchExamDetails(examId),
+      future: ExamService.fetchExamDetails(
+        examId,
+        questionStartIndex: questionStartIndex,
+        questionEndIndex: questionEndIndex,
+      ),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -59,16 +70,61 @@ class ExamTakingScreen extends StatelessWidget {
               );
             }
 
-            // If user has already attempted this exam, show result screen
+            // If user has already attempted this exam, show result screen with detailed data
             if (attemptSnapshot.hasData && attemptSnapshot.data != null) {
-              final existingAttempt = attemptSnapshot.data!;
-              return ExamResultScreen(
-                resultState: _convertAttemptToState(existingAttempt),
-                examTitle: existingAttempt.examTitle,
-                candidateName: existingAttempt.studentName,
-                candidateEmail: existingAttempt.studentEmail,
-                showRetakeButton: true,
-                onRetake: () => _startNewAttempt(context, examDetails),
+              return FutureBuilder<Map<String, dynamic>>(
+                future: ExamService.getExamAttemptDetails(examId),
+                builder: (context, detailsSnapshot) {
+                  if (detailsSnapshot.connectionState ==
+                      ConnectionState.waiting) {
+                    return const Scaffold(
+                      body: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+
+                  if (detailsSnapshot.hasError) {
+                    return Scaffold(
+                      body: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.error_outline,
+                              size: 64,
+                              color: Colors.red,
+                            ),
+                            const SizedBox(height: 16),
+                            Text('Error: ${detailsSnapshot.error}'),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text('Go Back'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  final details = detailsSnapshot.data!;
+                  final attempt = ExamAttempt.fromJson(details['attempt']);
+                  final examDetailsData =
+                      details['examDetails'] as Map<String, dynamic>;
+                  final questionsList = (details['questions'] as List)
+                      .map((q) => ExamQuestionJson.fromJson(q))
+                      .toList();
+
+                  return ExamResultScreen(
+                    resultState: _convertAttemptToState(attempt),
+                    examTitle: attempt.examTitle,
+                    candidateName: attempt.studentName,
+                    candidateEmail: attempt.studentEmail,
+                    showRetakeButton: true,
+                    onRetake: () => _startNewAttempt(context, examDetails),
+                    examDetails: examDetailsData,
+                    questions: questionsList,
+                  );
+                },
               );
             }
 
@@ -606,7 +662,8 @@ class _ScrollableQuestionsViewState extends State<_ScrollableQuestionsView> {
   }
 
   void _showSubmitConfirmationDialog(BuildContext context) {
-    final state = context.read<ExamTakingBloc>().state;
+    final bloc = context.read<ExamTakingBloc>();
+    final state = bloc.state;
     final attempted = state.selectedAnswers.length;
     final total = state.questions.length;
     final unattempted = total - attempted;
@@ -614,7 +671,7 @@ class _ScrollableQuestionsViewState extends State<_ScrollableQuestionsView> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: const Text('Submit Exam'),
           content: Column(
@@ -640,13 +697,14 @@ class _ScrollableQuestionsViewState extends State<_ScrollableQuestionsView> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Close dialog
-                context.read<ExamTakingBloc>().add(ExamSubmitted());
+                Navigator.of(dialogContext).pop(); // Close dialog
+                // Use the captured BLoC reference
+                bloc.add(ExamSubmitted());
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,

@@ -6,6 +6,7 @@ import 'package:pdf/pdf.dart' as pwc;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:screenshot/screenshot.dart';
 import '../bloc/exam_taking_bloc.dart';
+import '../models/exam_question_model.dart';
 
 class ExamResultScreen extends StatelessWidget {
   final ExamTakingState resultState;
@@ -14,6 +15,8 @@ class ExamResultScreen extends StatelessWidget {
   final String candidateEmail;
   final bool showRetakeButton;
   final VoidCallback? onRetake;
+  final Map<String, dynamic>? examDetails;
+  final List<ExamQuestion>? questions;
 
   ExamResultScreen({
     super.key,
@@ -23,6 +26,8 @@ class ExamResultScreen extends StatelessWidget {
     this.candidateEmail = 'appdibetu@gmail.com',
     this.showRetakeButton = false,
     this.onRetake,
+    this.examDetails,
+    this.questions,
   });
 
   // This controller is used programmatically, not in the widget tree.
@@ -341,8 +346,10 @@ class ExamResultScreen extends StatelessWidget {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          ...List.generate(resultState.questions.length, (index) {
-            final question = resultState.questions[index];
+          ...List.generate((questions ?? resultState.questions).length, (
+            index,
+          ) {
+            final question = (questions ?? resultState.questions)[index];
             final selectedAnswerIndex = resultState.selectedAnswers[index];
             final isCorrect =
                 selectedAnswerIndex == question.correctAnswerIndex;
@@ -372,14 +379,6 @@ class ExamResultScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            question.questionText,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
                           ...List.generate(question.options.length, (optIndex) {
                             final optionText = question.options[optIndex];
                             Color? tileColor;
@@ -404,6 +403,14 @@ class ExamResultScreen extends StatelessWidget {
                               child: Text(optionText),
                             );
                           }),
+                          const SizedBox(height: 12),
+                          Text(
+                            question.questionText,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                           // This part for 'explanation' will work if your model has it
                           if (question.explanation != null &&
                               question.explanation!.isNotEmpty) ...[

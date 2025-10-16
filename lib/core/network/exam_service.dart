@@ -39,15 +39,23 @@ class ExamDetails {
 }
 
 class ExamService {
-  static Future<ExamDetails> fetchExamDetails(String examId) async {
+  static Future<ExamDetails> fetchExamDetails(
+    String examId, {
+    int? questionStartIndex,
+    int? questionEndIndex,
+  }) async {
     // Simulate network delay
     await Future.delayed(const Duration(milliseconds: 800));
 
     // Determine exam type based on ID prefix
     if (examId.startsWith('bastugat_')) {
-      return _getBastugatExamData(examId);
+      return _getBastugatExamData(examId, questionStartIndex, questionEndIndex);
     } else {
-      return _getBishaygatExamData(examId);
+      return _getBishaygatExamData(
+        examId,
+        questionStartIndex,
+        questionEndIndex,
+      );
     }
   }
 
@@ -123,7 +131,44 @@ class ExamService {
     return true;
   }
 
-  static ExamDetails _getBishaygatExamData(String examId) {
+  static Future<Map<String, dynamic>> getExamAttemptDetails(
+    String examId,
+  ) async {
+    // Simulate network delay
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    // Get exam details first - fetch all questions for attempted exams
+    final examDetails = await fetchExamDetails(examId);
+
+    // Get attempt details
+    final attempt = await checkExistingAttempt(examId, 'student_123');
+
+    if (attempt == null) {
+      throw Exception('No attempt found for this exam');
+    }
+
+    return {
+      'attempt': attempt.toJson(),
+      'questions': examDetails.questions
+          .map((q) => ExamQuestionJson.toJson(q))
+          .toList(),
+      'examDetails': {
+        'id': examDetails.id,
+        'title': examDetails.title,
+        'subject': examDetails.subject,
+        'durationMinutes': examDetails.durationMinutes,
+        'totalQuestions': examDetails.totalQuestions,
+        'passMark': examDetails.passMark,
+        'price': examDetails.price,
+      },
+    };
+  }
+
+  static ExamDetails _getBishaygatExamData(
+    String examId,
+    int? questionStartIndex,
+    int? questionEndIndex,
+  ) {
     // Map exam IDs to proper titles
     final titleMap = {
       'sub_1': 'जीव विज्ञान परीक्षा',
@@ -220,7 +265,11 @@ class ExamService {
     return ExamDetails.fromJson(dummyData);
   }
 
-  static ExamDetails _getBastugatExamData(String examId) {
+  static ExamDetails _getBastugatExamData(
+    String examId,
+    int? questionStartIndex,
+    int? questionEndIndex,
+  ) {
     // Map exam IDs to proper titles
     final titleMap = {
       'bastugat_1': 'गणित परीक्षा',
@@ -287,5 +336,15 @@ class ExamQuestionJson {
       correctAnswerIndex: json['correctAnswerIndex'] as int,
       explanation: json['explanation'] as String?,
     );
+  }
+
+  static Map<String, dynamic> toJson(ExamQuestion question) {
+    return {
+      'id': question.id,
+      'questionText': question.questionText,
+      'options': question.options,
+      'correctAnswerIndex': question.correctAnswerIndex,
+      'explanation': question.explanation,
+    };
   }
 }
