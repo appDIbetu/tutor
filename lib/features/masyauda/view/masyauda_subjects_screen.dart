@@ -40,30 +40,65 @@ class _MasyaudaPdf {
 class _MasyaudaSubjectsScreenState extends State<MasyaudaSubjectsScreen> {
   final Map<String, bool> _expanded = {};
 
-  // Static sample data similar to NotesSubjectsScreen
+  // Static sample data based on the syllabus image
   final List<_MasyaudaTopic> _topics = const [
     _MasyaudaTopic(
-      id: 'masyauda_rit',
-      name: 'रिट',
+      id: 'masyauda_dewani',
+      name: 'देवानी मुद्दाको लिखतको मस्यौदा',
       isPremium: false,
       pdfs: [
         _MasyaudaPdf(
-          id: 'rit_habeas',
-          name: 'हाबियस कर्पस नमूना',
+          id: 'dewani_firadpatra',
+          name: 'फिरादपत्र',
           downloadUrl: '',
-          pageCount: 4,
+          pageCount: 8,
           isPremium: false,
         ),
         _MasyaudaPdf(
-          id: 'rit_mandamus',
-          name: 'म्यान्डामस नमूना',
+          id: 'dewani_pratiuttarpatra',
+          name: 'प्रतिउत्तरपत्र',
+          downloadUrl: '',
+          pageCount: 6,
+          isPremium: false,
+        ),
+        _MasyaudaPdf(
+          id: 'dewani_antarkalin',
+          name: 'अन्तरकालीन आदेश उपरको निवेदन',
           downloadUrl: '',
           pageCount: 5,
           isPremium: false,
         ),
         _MasyaudaPdf(
-          id: 'rit_certiorari',
-          name: 'सर्टियोरारी नमूना',
+          id: 'dewani_bahas',
+          name: 'बहस नोट',
+          downloadUrl: '',
+          pageCount: 4,
+          isPremium: false,
+        ),
+        _MasyaudaPdf(
+          id: 'dewani_punaravedan',
+          name: 'पुनरावेदन',
+          downloadUrl: '',
+          pageCount: 7,
+          isPremium: false,
+        ),
+        _MasyaudaPdf(
+          id: 'dewani_dopa',
+          name: 'दो.पा. र पुनरावलोकनको निवेदन',
+          downloadUrl: '',
+          pageCount: 6,
+          isPremium: false,
+        ),
+        _MasyaudaPdf(
+          id: 'dewani_vigo',
+          name: 'विगो भराउने, चलन चलाउने र अंश छुट्याइ पाऊँ भन्ने निवेदन',
+          downloadUrl: '',
+          pageCount: 9,
+          isPremium: false,
+        ),
+        _MasyaudaPdf(
+          id: 'dewani_adhikrit',
+          name: 'अधिकृत वारिसनामा',
           downloadUrl: '',
           pageCount: 3,
           isPremium: false,
@@ -71,55 +106,112 @@ class _MasyaudaSubjectsScreenState extends State<MasyaudaSubjectsScreen> {
       ],
     ),
     _MasyaudaTopic(
-      id: 'masyauda_dewani',
-      name: 'देवानी',
-      isPremium: true,
-      pdfs: [
-        _MasyaudaPdf(
-          id: 'civil_inheritance',
-          name: 'विरासत सम्बन्धी मस्यौदा',
-          downloadUrl: '',
-          pageCount: 6,
-          isPremium: true,
-        ),
-        _MasyaudaPdf(
-          id: 'civil_contract',
-          name: 'करार उल्लंघन मस्यौदा',
-          downloadUrl: '',
-          pageCount: 7,
-          isPremium: true,
-        ),
-        _MasyaudaPdf(
-          id: 'civil_possession',
-          name: 'कब्जा माग मस्यौदा',
-          downloadUrl: '',
-          pageCount: 5,
-          isPremium: true,
-        ),
-      ],
-    ),
-    _MasyaudaTopic(
       id: 'masyauda_faujdaari',
-      name: 'फौजदारी',
+      name: 'फौजदारी मुद्दाको मस्यौदा लेखन',
       isPremium: false,
       pdfs: [
         _MasyaudaPdf(
-          id: 'criminal_bail',
-          name: 'जमानत निवेदन नमूना',
+          id: 'faujdaari_thunchek',
+          name: 'थुनछेक आदेश उपरको निवेदन',
+          downloadUrl: '',
+          pageCount: 5,
+          isPremium: false,
+        ),
+        _MasyaudaPdf(
+          id: 'faujdaari_bahas',
+          name: 'बहस नोट',
           downloadUrl: '',
           pageCount: 4,
           isPremium: false,
         ),
         _MasyaudaPdf(
-          id: 'criminal_appeal',
-          name: 'अपिल निवेदन नमूना',
+          id: 'faujdaari_sajaypurba',
+          name: 'सजायपूर्वको प्रतिवेदन',
           downloadUrl: '',
           pageCount: 6,
           isPremium: false,
         ),
         _MasyaudaPdf(
-          id: 'criminal_complaint',
-          name: 'जिल्ला नापतौल उजुरी',
+          id: 'faujdaari_punaravedan',
+          name: 'पुनरावेदनपत्र',
+          downloadUrl: '',
+          pageCount: 7,
+          isPremium: false,
+        ),
+        _MasyaudaPdf(
+          id: 'faujdaari_dopa',
+          name: 'दो. पा. र पुनरावलोकनको निवेदन',
+          downloadUrl: '',
+          pageCount: 6,
+          isPremium: false,
+        ),
+      ],
+    ),
+    _MasyaudaTopic(
+      id: 'masyauda_rit',
+      name: 'रिटसम्बन्धी लिखतको मस्यौदा लेखन',
+      isPremium: false,
+      pdfs: [
+        _MasyaudaPdf(
+          id: 'rit_writ_petition',
+          name:
+              'रिट निवेदन (उत्प्रेषण, परमादेश, प्रतिषेध, बन्दी प्रत्यक्षीकरण, अधिकारपृच्छा, निषेधाज्ञा र संविधानको धारा १३३(१) बमोजिमको निवेदन)',
+          downloadUrl: '',
+          pageCount: 12,
+          isPremium: false,
+        ),
+        _MasyaudaPdf(
+          id: 'rit_darpith',
+          name: 'रिट निवेदन दरपीठ उपरको निवेदन',
+          downloadUrl: '',
+          pageCount: 5,
+          isPremium: false,
+        ),
+        _MasyaudaPdf(
+          id: 'rit_antrim',
+          name: 'अन्तरिम आदेश उपरको उपचार',
+          downloadUrl: '',
+          pageCount: 4,
+          isPremium: false,
+        ),
+        _MasyaudaPdf(
+          id: 'rit_likhit_jawaf',
+          name: 'लिखित जवाफ',
+          downloadUrl: '',
+          pageCount: 6,
+          isPremium: false,
+        ),
+        _MasyaudaPdf(
+          id: 'rit_uchcha_dopa',
+          name: 'उच्च अदालतको आदेश उपर दो.पा. को निवेदन',
+          downloadUrl: '',
+          pageCount: 7,
+          isPremium: false,
+        ),
+        _MasyaudaPdf(
+          id: 'rit_punarawalokan',
+          name: 'पुनरावलोकनको निवेदन',
+          downloadUrl: '',
+          pageCount: 5,
+          isPremium: false,
+        ),
+      ],
+    ),
+    _MasyaudaTopic(
+      id: 'masyauda_anuwaad',
+      name: 'कानूनी अंग्रेजी नेपाली अनुबाद',
+      isPremium: false,
+      pdfs: [
+        _MasyaudaPdf(
+          id: 'anuwaad_nepali_english',
+          name: 'कानूनी नेपालीबाट अंग्रेजीमा अनुवाद',
+          downloadUrl: '',
+          pageCount: 3,
+          isPremium: false,
+        ),
+        _MasyaudaPdf(
+          id: 'anuwaad_english_nepali',
+          name: 'कानूनी अंग्रेजीबाट नेपालीमा अनुवाद',
           downloadUrl: '',
           pageCount: 3,
           isPremium: false,
@@ -135,7 +227,11 @@ class _MasyaudaSubjectsScreenState extends State<MasyaudaSubjectsScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.primary,
-        title: const Text('मस्यौदा लेखन'),
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text(
+          'मस्यौदा लेखन',
+          style: TextStyle(color: Colors.white),
+        ),
       ),
       backgroundColor: AppColors.background,
       body: ListView.separated(
@@ -160,73 +256,142 @@ class _MasyaudaSubjectsScreenState extends State<MasyaudaSubjectsScreen> {
 
     return Card(
       margin: EdgeInsets.zero,
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: locked
+              ? Colors.grey.shade300
+              : AppColors.primary.withValues(alpha: 0.1),
+          width: 1,
+        ),
+      ),
       child: Column(
         children: [
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
-            ),
-            leading: Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: locked
-                    ? AppColors.primary.withValues(alpha: 0.1)
-                    : Colors.green.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Icon(
-                locked ? Icons.lock_outline : Icons.lock_open_outlined,
-                color: locked
-                    ? AppColors.primary.withValues(alpha: 0.6)
-                    : Colors.green.withValues(alpha: 0.6),
-                size: 14,
-              ),
-            ),
-            title: Text(
-              topic.name,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.normal,
-                color: Colors.black54,
-              ),
-            ),
-            subtitle: Row(
-              children: [
-                Icon(
-                  Icons.picture_as_pdf_outlined,
-                  size: 14,
-                  color: Colors.black54,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '${topic.pdfs.length} PDFs',
-                  style: const TextStyle(color: Colors.black54, fontSize: 10),
-                ),
-              ],
-            ),
-            trailing: Icon(
-              isExpanded ? Icons.expand_less : Icons.expand_more,
-              color: Colors.black54,
-            ),
+          // Header section
+          InkWell(
             onTap: () {
               setState(() {
                 _expanded[topic.id] = !isExpanded;
               });
             },
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  // Folder icon container
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: locked
+                          ? Colors.grey.shade100
+                          : AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      locked ? Icons.lock : Icons.folder_open,
+                      color: locked ? Colors.grey.shade600 : AppColors.primary,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+
+                  // Content
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          topic.name,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: locked
+                                ? Colors.grey.shade600
+                                : Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.picture_as_pdf_outlined,
+                              size: 14,
+                              color: Colors.grey.shade600,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${topic.pdfs.length} ${topic.pdfs.length == 1 ? 'PDF' : 'PDFs'}',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: topic.isPremium
+                                    ? AppColors.primary.withValues(alpha: 0.1)
+                                    : Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                topic.isPremium ? 'प्रीमियम' : 'निःशुल्क',
+                                style: TextStyle(
+                                  color: topic.isPremium
+                                      ? AppColors.primary
+                                      : Colors.grey.shade600,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Expand button
+                  Icon(
+                    isExpanded ? Icons.expand_less : Icons.expand_more,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
           ),
+
+          // Expanded PDF list
           if (isExpanded)
             Container(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(12),
+                  bottomRight: Radius.circular(12),
+                ),
+              ),
               child: Column(
                 children: [
-                  const Divider(height: 1),
-                  const SizedBox(height: 12),
-                  ...topic.pdfs.map(
-                    (pdf) => _buildPdfItem(context, topic.name, pdf, locked),
+                  Container(height: 1, color: Colors.grey.shade200),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: topic.pdfs
+                          .map(
+                            (pdf) =>
+                                _buildPdfItem(context, topic.name, pdf, locked),
+                          )
+                          .toList(),
+                    ),
                   ),
                 ],
               ),
@@ -243,105 +408,160 @@ class _MasyaudaSubjectsScreenState extends State<MasyaudaSubjectsScreen> {
     bool topicLocked,
   ) {
     final bool locked = (pdf.isPremium || topicLocked) && !_userHasPremium;
-    return InkWell(
-      onTap: () {
-        if (locked) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('यो PDF प्रीमियम मात्रका लागि हो।')),
-          );
-          return;
-        }
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => PdfViewerScreen(
-              topicName: topicName,
-              pdfId: pdf.id,
-              pdfUrl: pdf.downloadUrl,
-              pdfName: pdf.name,
-            ),
-          ),
-        );
-      },
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.picture_as_pdf_outlined,
-              color: Colors.red.shade600,
-              size: 16,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          pdf.name,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.normal,
-                            color: Colors.black54,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${pdf.pageCount} पृष्ठ',
-                    style: const TextStyle(fontSize: 12, color: Colors.black54),
-                  ),
-                ],
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () {
+          if (locked) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('यो PDF प्रीमियम मात्रका लागि हो।')),
+            );
+            return;
+          }
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => PdfViewerScreen(
+                topicName: topicName,
+                pdfId: pdf.id,
+                pdfUrl: pdf.downloadUrl,
+                pdfName: pdf.name,
               ),
             ),
-            const SizedBox(width: 8),
-            Icon(
-              locked ? Icons.lock_outline : Icons.lock_open_outlined,
-              size: 10,
+          );
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: locked ? Colors.grey.shade100 : Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
               color: locked
-                  ? AppColors.primary.withValues(alpha: 0.6)
-                  : Colors.green.withValues(alpha: 0.6),
+                  ? Colors.grey.shade300
+                  : AppColors.primary.withValues(alpha: 0.2),
+              width: 1,
             ),
-            const SizedBox(width: 8),
-            IconButton(
-              onPressed: () {
-                if (locked) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('यो PDF प्रीमियम मात्रका लागि हो।'),
+          ),
+          child: Row(
+            children: [
+              // PDF icon
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: locked ? Colors.grey.shade200 : Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(
+                  Icons.picture_as_pdf_outlined,
+                  color: locked ? Colors.grey.shade600 : Colors.red.shade600,
+                  size: 16,
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      pdf.name,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: locked ? Colors.grey.shade600 : Colors.black87,
+                      ),
                     ),
-                  );
-                  return;
-                }
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => PdfViewerScreen(
-                      topicName: topicName,
-                      pdfId: pdf.id,
-                      pdfUrl: pdf.downloadUrl,
-                      pdfName: pdf.name,
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.description_outlined,
+                          size: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${pdf.pageCount} पृष्ठ',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: pdf.isPremium
+                                ? AppColors.primary.withValues(alpha: 0.1)
+                                : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            pdf.isPremium ? 'प्रीमियम' : 'निःशुल्क',
+                            style: TextStyle(
+                              color: pdf.isPremium
+                                  ? AppColors.primary
+                                  : Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
+                  ],
+                ),
+              ),
+
+              // Action button
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: locked
+                      ? Colors.grey.shade200
+                      : AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: IconButton(
+                  onPressed: () {
+                    if (locked) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('यो PDF प्रीमियम मात्रका लागि हो।'),
+                        ),
+                      );
+                      return;
+                    }
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => PdfViewerScreen(
+                          topicName: topicName,
+                          pdfId: pdf.id,
+                          pdfUrl: pdf.downloadUrl,
+                          pdfName: pdf.name,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: Icon(
+                    locked ? Icons.lock_outline : Icons.visibility_outlined,
+                    size: 16,
+                    color: locked ? Colors.grey.shade600 : AppColors.primary,
                   ),
-                );
-              },
-              icon: const Icon(Icons.chrome_reader_mode_outlined, size: 16),
-              color: Colors.black54,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              tooltip: 'पढ्नुहोस्',
-            ),
-          ],
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  tooltip: locked ? 'लक गरिएको' : 'पढ्नुहोस्',
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
