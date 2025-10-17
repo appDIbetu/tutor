@@ -121,6 +121,7 @@ class _ExamCodeCardState extends State<ExamCodeCard> {
                 ),
               ],
             ),
+            const SizedBox(height: 8),
           ],
         ),
       ),

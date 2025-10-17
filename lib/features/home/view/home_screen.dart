@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 import '../bloc/home_bloc.dart';
 import '../widgets/exam_code_card.dart';
 import '../../../core/constants/app_colors.dart';
@@ -44,7 +45,7 @@ class HomeScreen extends StatelessWidget {
                           userName = state.userName;
                         }
                         return SizedBox(
-                          height: 240,
+                          height: 225,
                           child: Stack(
                             clipBehavior: Clip.none,
                             children: [
@@ -57,9 +58,9 @@ class HomeScreen extends StatelessWidget {
                                   color: AppColors.primary,
                                   padding: const EdgeInsets.fromLTRB(
                                     16,
+                                    0,
                                     16,
-                                    16,
-                                    80,
+                                    20,
                                   ),
                                   alignment: Alignment.topLeft,
                                   child: Text(
@@ -84,7 +85,7 @@ class HomeScreen extends StatelessWidget {
                       },
                     ),
                   ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 32)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 25)),
                   SliverToBoxAdapter(
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -239,17 +240,153 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // Placeholder for promo carousel (Use the carousel_slider package here)
+  // Promo carousel with 3 advertisement cards
   Widget _buildPromoCarousel() {
-    // You can implement this using the carousel_slider package
-    return Container(
-      height: 150,
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.grey[300],
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: const Center(child: Text('Promo Banner Carousel')),
+    return _PromoCarouselWidget();
+  }
+}
+
+class _PromoCarouselWidget extends StatefulWidget {
+  @override
+  _PromoCarouselWidgetState createState() => _PromoCarouselWidgetState();
+}
+
+class _PromoCarouselWidgetState extends State<_PromoCarouselWidget> {
+  int _currentIndex = 0;
+
+  final List<Map<String, dynamic>> promoData = [
+    {
+      'title': 'बार लाइसेन्स तयारी संस्थान',
+      'subtitle': 'व्यावसायिक कानूनी शिक्षा',
+      'description': 'अधिवक्ता परीक्षाको लागि व्यावसायिक तयारी',
+      'icon': Icons.school,
+    },
+    {
+      'title': 'कानूनी पुस्तकहरू',
+      'subtitle': 'संविधान र कानून',
+      'description': 'सबै विषयका लागि व्यापक पुस्तकहरू',
+      'icon': Icons.menu_book,
+    },
+    {
+      'title': 'अनलाइन कोर्स',
+      'subtitle': 'डिजिटल शिक्षा',
+      'description': 'घरबाटै सिक्नुहोस् र तयार हुनुहोस्',
+      'icon': Icons.laptop,
+    },
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          height: 180,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: CarouselSlider.builder(
+            itemCount: promoData.length,
+            itemBuilder: (context, index, realIndex) {
+              final promo = promoData[index];
+              return Container(
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              promo['icon'],
+                              color: AppColors.primary,
+                              size: 28,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  promo['title'],
+                                  style: const TextStyle(
+                                    color: Colors.black87,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  promo['subtitle'],
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        promo['description'],
+                        style: TextStyle(
+                          color: Colors.grey.shade700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+            options: CarouselOptions(
+              height: 180,
+              autoPlay: true,
+              autoPlayInterval: const Duration(seconds: 3),
+              autoPlayAnimationDuration: const Duration(milliseconds: 800),
+              autoPlayCurve: Curves.fastOutSlowIn,
+              enlargeCenterPage: false,
+              viewportFraction: 1.0,
+              aspectRatio: 2.0,
+              onPageChanged: (index, reason) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+            ),
+          ),
+        ),
+        // Dots indicator
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            promoData.length,
+            (index) => Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _currentIndex == index
+                    ? AppColors.primary
+                    : AppColors.primary.withValues(alpha: 0.3),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
