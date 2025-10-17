@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_nav_bar/google_nav_bar.dart';
 import '../../calendar/view/calendar_screen.dart';
 import '../../dashboard/cubit/dashboard_cubit.dart';
 import '../../feed/view/feed_screen.dart';
@@ -12,8 +13,8 @@ class DashboardScreen extends StatelessWidget {
 
   final List<Widget> _screens = const [
     HomeScreen(),
-    CalendarScreen(),
-    FeedScreen(),
+    CalendarScreen(), // Events
+    FeedScreen(), // Notices
     ProfileScreen(),
   ];
 
@@ -25,27 +26,48 @@ class DashboardScreen extends StatelessWidget {
         builder: (context, selectedIndex) {
           return Scaffold(
             body: IndexedStack(index: selectedIndex, children: _screens),
-            bottomNavigationBar: BottomNavigationBar(
-              currentIndex: selectedIndex,
-              onTap: (index) => context.read<DashboardCubit>().changeTab(index),
-              type: BottomNavigationBarType.fixed,
-              selectedItemColor: AppColors.primary,
-              unselectedItemColor: Colors.grey,
-              items: const [
-                BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.calendar_today),
-                  label: 'Calendar',
+            bottomNavigationBar: Container(
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                boxShadow: [
+                  BoxShadow(
+                    blurRadius: 20,
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 15.0,
+                    vertical: 8,
+                  ),
+                  child: GNav(
+                    gap: 8,
+                    activeColor: Colors.white,
+                    iconSize: 24,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                    duration: const Duration(milliseconds: 400),
+                    tabBackgroundColor: Colors.white.withValues(alpha: 0.2),
+                    color: Colors.white,
+                    tabs: const [
+                      GButton(icon: Icons.home_outlined, text: 'Home'),
+                      GButton(icon: Icons.event_outlined, text: 'Events'),
+                      GButton(
+                        icon: Icons.notifications_outlined,
+                        text: 'Notices',
+                      ),
+                      GButton(icon: Icons.person_outline, text: 'Profile'),
+                    ],
+                    selectedIndex: selectedIndex,
+                    onTabChange: (index) =>
+                        context.read<DashboardCubit>().changeTab(index),
+                  ),
                 ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.rss_feed),
-                  label: 'Feed',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.person),
-                  label: 'Profile',
-                ),
-              ],
+              ),
             ),
           );
         },
