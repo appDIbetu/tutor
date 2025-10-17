@@ -387,7 +387,7 @@ class _SubjectTile extends StatelessWidget {
         name.contains('intellectual property')) {
       return Icons.lightbulb; // Lightbulb for ideas/IP
     } else if (name.contains('कर') || name.contains('tax')) {
-      return Icons.attach_money; // Money for tax
+      return Icons.account_balance_wallet; // Wallet for tax/money
     } else if (name.contains('पीडित') || name.contains('victim')) {
       return Icons.support; // Support for victims
     } else if (name.contains('आचार संहिता') ||
