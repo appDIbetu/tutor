@@ -8,6 +8,7 @@ import '../../exam/view/subject_list_screen.dart';
 import '../../notes/view/notes_subjects_screen.dart';
 import '../../masyauda/view/masyauda_subjects_screen.dart';
 import '../../bastugat/view/bastugat_subjects_screen.dart';
+import '../../quiz/view/quiz_subjects_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -131,7 +132,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                   const SliverToBoxAdapter(child: SizedBox(height: 24)),
                   // Quiz card
-                  SliverToBoxAdapter(child: _buildQuizOfTheDayCard()),
+                  SliverToBoxAdapter(child: _buildQuizOfTheDayCard(context)),
                   const SliverToBoxAdapter(child: SizedBox(height: 24)),
                   // Promo carousel
                   SliverToBoxAdapter(child: _buildPromoCarousel()),
@@ -193,34 +194,47 @@ class HomeScreen extends StatelessWidget {
   }
 
   // Card below topics section with requested text
-  Widget _buildQuizOfTheDayCard() {
+  Widget _buildQuizOfTheDayCard(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.1),
+      child: InkWell(
+        onTap: () {
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const QuizSubjectsScreen()));
+        },
         borderRadius: BorderRadius.circular(12),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.lightbulb_outline, color: AppColors.primary, size: 30),
-          SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '३४औ अधिवक्ता परिक्षा तोकिएका नजिरहरु',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                Text(
-                  '३४औ अधिवक्ता परिक्षा तोकिएका नजिरहरुको व्याख्या',
-                  style: TextStyle(fontSize: 12, color: Colors.black54),
-                ),
-              ],
-            ),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
           ),
-        ],
+          child: const Row(
+            children: [
+              Icon(Icons.lightbulb_outline, color: AppColors.primary, size: 30),
+              SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '३४औ अधिवक्ता तहको परीक्षाका लागि तोकिएका नजिरहरु',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      '३४औ अधिवक्ता तहको परीक्षाका लागि तोकिएका नजिरहरुको व्याख्या',
+                      style: TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
