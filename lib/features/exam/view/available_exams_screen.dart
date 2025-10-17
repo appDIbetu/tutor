@@ -91,46 +91,13 @@ class AvailableExamsScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Premium/Non-premium tag
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: exam.isPremium
-                        ? Colors.red.withValues(alpha: 0.1)
-                        : Colors.green.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: exam.isPremium
-                          ? Colors.red.withValues(alpha: 0.4)
-                          : Colors.green.withValues(alpha: 0.4),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        exam.isPremium ? Icons.lock : Icons.lock_open,
-                        size: 12,
-                        color: exam.isPremium
-                            ? Colors.red.withValues(alpha: 0.4)
-                            : Colors.green.withValues(alpha: 0.4),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        exam.isPremium ? 'प्रीमियम' : 'निःशुल्क',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          color: exam.isPremium
-                              ? Colors.red.withValues(alpha: 0.4)
-                              : Colors.green.withValues(alpha: 0.4),
-                        ),
-                      ),
-                    ],
-                  ),
+                // Premium/Non-premium icon (no background)
+                Icon(
+                  exam.isPremium ? Icons.lock : Icons.lock_open,
+                  size: 12,
+                  color: exam.isPremium
+                      ? Colors.red.withValues(alpha: 0.6)
+                      : Colors.green.withValues(alpha: 0.6),
                 ),
               ],
             ),
@@ -211,8 +178,6 @@ class AvailableExamsScreen extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: isDisabled
                           ? Colors.grey
-                          : exam.hasAttempted
-                          ? Colors.blue
                           : AppColors.primary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),

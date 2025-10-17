@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../exam_taking/view/exam_taking_screen.dart';
 import '../../exam_taking/models/exam_attempt_model.dart';
@@ -11,6 +12,7 @@ class Subject {
   final int passMark;
   final bool isPremium;
   final bool hasAttempted;
+  final bool isSpecial;
   final ExamAttempt? lastAttempt;
 
   const Subject({
@@ -21,6 +23,7 @@ class Subject {
     required this.passMark,
     required this.isPremium,
     this.hasAttempted = false,
+    this.isSpecial = false,
     this.lastAttempt,
   });
 
@@ -33,6 +36,7 @@ class Subject {
       passMark: json['passMark'] as int,
       isPremium: json['isPremium'] as bool,
       hasAttempted: json['hasAttempted'] as bool? ?? false,
+      isSpecial: json['isSpecial'] as bool? ?? false,
       lastAttempt: json['lastAttempt'] != null
           ? ExamAttempt.fromJson(json['lastAttempt'] as Map<String, dynamic>)
           : null,
@@ -54,9 +58,7 @@ Widget _buildList(
 
       return _SubjectTile(
         subject: subject,
-        locked:
-            subject.isPremium &&
-            !userHasPremium, // Lock premium subjects for non-premium users
+        locked: false, // All subjects are now clickable
         onAttempt: () {
           // Show question range selection dialog for all subjects
           _showQuestionRangeDialog(context, subject, userHasPremium);
@@ -71,10 +73,7 @@ void _showQuestionRangeDialog(
   Subject subject,
   bool userHasPremium,
 ) {
-  // Don't show dialog for premium subjects if user doesn't have premium
-  if (subject.isPremium && !userHasPremium) {
-    return;
-  }
+  // Always show dialog for all subjects
 
   showDialog(
     context: context,
@@ -169,89 +168,157 @@ class _SubjectTile extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
       child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
+        padding: const EdgeInsets.all(16),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _LockedBadge(locked: locked, isPremium: subject.isPremium),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            // Header row with icon, title, and premium badge
+            Row(
+              children: [
+                // Subject icon
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    _getSubjectIcon(subject.name, subject.isSpecial),
+                    color: AppColors.primary,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          subject.name,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.black.withValues(alpha: 0.6),
-                          ),
+                      Text(
+                        subject.name,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: locked ? Colors.grey.shade600 : Colors.black87,
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: subject.isPremium
-                              ? AppColors.primary.withValues(alpha: 0.1)
-                              : Colors.green.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          subject.isPremium ? 'प्रीमियम' : 'निःशुल्क',
-                          style: TextStyle(
-                            color: subject.isPremium
-                                ? AppColors.primary.withValues(alpha: 0.7)
-                                : Colors.green.withValues(alpha: 0.7),
-                            fontWeight: FontWeight.normal,
-                            fontSize: 11,
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              Clipboard.setData(
+                                ClipboardData(text: subject.id.toUpperCase()),
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    '${subject.id.toUpperCase()} copied to clipboard',
+                                  ),
+                                  duration: const Duration(seconds: 2),
+                                  backgroundColor: AppColors.primary,
+                                ),
+                              );
+                            },
+                            child: Text(
+                              subject.id.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                           ),
-                        ),
+                          Text(
+                            ' | ${subject.isSpecial ? 'विशिष्टिकृत' : 'संविधान र कानून'}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _InfoChip(
-                        icon: Icons.help_outline,
-                        label: '${subject.numberOfQuestions} प्रश्न',
-                      ),
-                      _InfoChip(
-                        icon: Icons.schedule,
-                        label: '${subject.durationMinutes} मिनेट',
-                      ),
-                    ],
+                ),
+                // Premium/Free badge
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
                   ),
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: ElevatedButton.icon(
-                      onPressed: onAttempt,
-                      icon: const Icon(Icons.play_arrow_rounded),
-                      label: Text(
-                        locked ? 'प्रीमियम आवश्यक' : 'अभ्यास गर्नुहोस्',
-                        style: const TextStyle(fontWeight: FontWeight.normal),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: locked
-                            ? Colors.grey
-                            : const Color(0xFFF8D7DA),
-                        foregroundColor: locked
-                            ? Colors.white
-                            : Colors.black.withValues(alpha: 0.6),
-                      ),
+                  decoration: BoxDecoration(
+                    color: subject.isPremium
+                        ? AppColors.primary.withValues(alpha: 0.1)
+                        : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    subject.isPremium ? 'प्रीमियम' : 'निःशुल्क',
+                    style: TextStyle(
+                      color: subject.isPremium
+                          ? AppColors.primary
+                          : Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 10,
                     ),
                   ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // Stats row
+            Row(
+              children: [
+                _StatItem(
+                  icon: Icons.quiz_outlined,
+                  label: '${subject.numberOfQuestions} प्रश्न',
+                ),
+                const SizedBox(width: 16),
+                _StatItem(
+                  icon: Icons.timer_outlined,
+                  label: '${subject.durationMinutes} मिनेट',
+                ),
+                if (subject.hasAttempted) ...[
+                  const SizedBox(width: 16),
+                  _StatItem(icon: Icons.check_circle_outline, label: 'पूरा'),
                 ],
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // Action button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: locked ? null : onAttempt,
+                icon: Icon(
+                  locked ? Icons.lock : Icons.play_arrow_rounded,
+                  size: 18,
+                ),
+                label: Text(
+                  'अभ्यास गर्नुहोस्',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: locked
+                      ? Colors.grey.shade300
+                      : AppColors.primary,
+                  foregroundColor: locked ? Colors.grey.shade600 : Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 0,
+                ),
               ),
             ),
           ],
@@ -259,61 +326,117 @@ class _SubjectTile extends StatelessWidget {
       ),
     );
   }
-}
 
-class _LockedBadge extends StatelessWidget {
-  final bool locked;
-  final bool isPremium;
+  IconData _getSubjectIcon(String subjectName, bool isSpecial) {
+    // More specific icons for different types of legal subjects
+    final name = subjectName.toLowerCase();
 
-  const _LockedBadge({required this.locked, required this.isPremium});
-
-  @override
-  Widget build(BuildContext context) {
-    final bg = locked
-        ? Colors.red.withOpacity(0.1)
-        : Colors.green.withOpacity(0.1);
-    final icon = locked ? Icons.lock_outline : Icons.lock_open_outlined;
-
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-      child: Icon(
-        icon,
-        size: 16,
-        color: isPremium
-            ? AppColors.primary.withValues(alpha: 0.4)
-            : Colors.grey.shade700,
-      ),
-    );
+    if (name.contains('संवैधानिक') || name.contains('constitutional')) {
+      return Icons.account_balance; // Supreme Court building
+    } else if (name.contains('प्रशासकीय') || name.contains('administrative')) {
+      return Icons.admin_panel_settings; // Administrative settings
+    } else if (name.contains('अपराध') ||
+        name.contains('criminal') ||
+        name.contains('फौजदारी')) {
+      return Icons.gavel; // Gavel for criminal law
+    } else if (name.contains('देवानी') || name.contains('civil')) {
+      return Icons.handshake; // Handshake for civil law
+    } else if (name.contains('न्याय') || name.contains('justice')) {
+      return Icons.balance; // Scales of justice
+    } else if (name.contains('प्रमाण') || name.contains('evidence')) {
+      return Icons.fact_check; // Evidence/fact check
+    } else if (name.contains('विधिशास्त्र') || name.contains('jurisprudence')) {
+      return Icons.menu_book; // Book for jurisprudence
+    } else if (name.contains('व्याख्या') || name.contains('interpretation')) {
+      return Icons.translate; // Translation/interpretation
+    } else if (name.contains('अदालत') || name.contains('court')) {
+      return Icons.account_balance; // Court building
+    } else if (name.contains('नेपालको कानून') || name.contains('nepal law')) {
+      return Icons.flag; // Flag for Nepal law system
+    } else if (name.contains('कानून व्याख्या') ||
+        name.contains('legal interpretation')) {
+      return Icons.translate; // Translation/interpretation
+    }
+    // Specialized subjects
+    else if (name.contains('अन्तर्राष्ट्रिय') ||
+        name.contains('international')) {
+      return Icons.public; // Globe for international law
+    } else if (name.contains('मानव अधिकार') || name.contains('human rights')) {
+      return Icons.favorite; // Heart for human rights
+    } else if (name.contains('कम्पनी') || name.contains('company')) {
+      return Icons.business; // Business building
+    } else if (name.contains('लैंगिक हिंसा') ||
+        name.contains('gender') ||
+        name.contains('violence')) {
+      return Icons.security; // Security shield
+    } else if (name.contains('बाल') || name.contains('child')) {
+      return Icons.child_care; // Child care
+    } else if (name.contains('संगठित अपराध') ||
+        name.contains('organized crime')) {
+      return Icons.warning; // Warning sign
+    } else if (name.contains('विद्युतीय') ||
+        name.contains('electronic') ||
+        name.contains('digital')) {
+      return Icons.computer; // Computer/electronic
+    } else if (name.contains('भ्रष्टाचार') || name.contains('corruption')) {
+      return Icons.block; // Block/stop corruption
+    } else if (name.contains('विवाद समाधान') ||
+        name.contains('dispute resolution')) {
+      return Icons.mediation; // Mediation
+    } else if (name.contains('बौद्धिक सम्पत्ति') ||
+        name.contains('intellectual property')) {
+      return Icons.lightbulb; // Lightbulb for ideas/IP
+    } else if (name.contains('कर') || name.contains('tax')) {
+      return Icons.attach_money; // Money for tax
+    } else if (name.contains('पीडित') || name.contains('victim')) {
+      return Icons.support; // Support for victims
+    } else if (name.contains('आचार संहिता') ||
+        name.contains('code of conduct')) {
+      return Icons.rule; // Rules/conduct
+    } else if (name.contains('वातावरण') || name.contains('environmental')) {
+      return Icons.eco; // Eco/environment
+    } else if (name.contains('बीमा') || name.contains('insurance')) {
+      return Icons.security; // Security for insurance
+    } else if (name.contains('श्रम') || name.contains('labor')) {
+      return Icons.work; // Work for labor
+    } else if (name.contains('बैंक') ||
+        name.contains('banking') ||
+        name.contains('वित्तीय')) {
+      return Icons.account_balance_wallet; // Wallet for banking
+    } else if (name.contains('अध्यागमन') || name.contains('immigration')) {
+      return Icons.flight; // Flight for immigration
+    } else if (name.contains('अनुसन्धान') || name.contains('research')) {
+      return Icons.search; // Search for research
+    } else if (name.contains('कानून') || name.contains('law')) {
+      return Icons.library_books; // Law books
+    } else {
+      return Icons.balance; // Default scales of justice
+    }
   }
 }
 
-class _InfoChip extends StatelessWidget {
+class _StatItem extends StatelessWidget {
   final IconData icon;
   final String label;
 
-  const _InfoChip({required this.icon, required this.label});
+  const _StatItem({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: Colors.black54),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(color: Colors.black54, fontSize: 12),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: AppColors.primary, size: 16),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.grey.shade600,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -347,15 +470,16 @@ class SubjectService {
     const payload = [
       {
         'id': 'sub_1',
-        'name': 'Biology',
+        'name': 'संवैधानिक कानून',
         'numberOfQuestions': 50,
         'durationMinutes': 60,
         'passMark': 40,
         'isPremium': false,
+        'isSpecial': false,
         'hasAttempted': true,
         'lastAttempt': {
           'examId': 'sub_1',
-          'examTitle': 'जीव विज्ञान परीक्षा',
+          'examTitle': 'संवैधानिक कानून परीक्षा',
           'studentId': 'student_123',
           'studentName': 'Dipak Shah',
           'studentEmail': 'appdibetu@gmail.com',
@@ -375,21 +499,331 @@ class SubjectService {
       },
       {
         'id': 'sub_2',
-        'name': 'Physics',
-        'numberOfQuestions': 60,
-        'durationMinutes': 75,
-        'passMark': 45,
+        'name': 'प्रशासकीय कानून',
+        'numberOfQuestions': 45,
+        'durationMinutes': 55,
+        'passMark': 35,
         'isPremium': true,
+        'isSpecial': false,
         'hasAttempted': false,
         'lastAttempt': null,
       },
       {
         'id': 'sub_3',
-        'name': 'Chemistry',
+        'name': 'मुलुकी अपराध संहिता',
+        'numberOfQuestions': 60,
+        'durationMinutes': 75,
+        'passMark': 45,
+        'isPremium': false,
+        'isSpecial': false,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_4',
+        'name': 'मुलुकी फौजदारी कार्यविधि संहिता',
         'numberOfQuestions': 55,
         'durationMinutes': 70,
         'passMark': 42,
+        'isPremium': true,
+        'isSpecial': false,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_5',
+        'name': 'मुलुकी देवानी संहिता',
+        'numberOfQuestions': 50,
+        'durationMinutes': 65,
+        'passMark': 40,
         'isPremium': false,
+        'isSpecial': false,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_6',
+        'name': 'मुलुकी देवानी कार्यविधि संहिता',
+        'numberOfQuestions': 48,
+        'durationMinutes': 60,
+        'passMark': 38,
+        'isPremium': true,
+        'isSpecial': false,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_7',
+        'name': 'फौजदारी कसूर (सजाय निर्धारण तथा कार्यान्वयन) ऐन',
+        'numberOfQuestions': 42,
+        'durationMinutes': 55,
+        'passMark': 35,
+        'isPremium': false,
+        'isSpecial': false,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_8',
+        'name': 'न्याय प्रशासन ऐन र प्रमाण कानून',
+        'numberOfQuestions': 40,
+        'durationMinutes': 50,
+        'passMark': 32,
+        'isPremium': true,
+        'isSpecial': false,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_9',
+        'name': 'नेपालको कानून प्रणाली',
+        'numberOfQuestions': 35,
+        'durationMinutes': 45,
+        'passMark': 28,
+        'isPremium': false,
+        'isSpecial': false,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_10',
+        'name': 'विधिशास्त्र (विभिन्न सम्प्रदायको बारेमा मात्र)',
+        'numberOfQuestions': 38,
+        'durationMinutes': 48,
+        'passMark': 30,
+        'isPremium': true,
+        'isSpecial': false,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_11',
+        'name': 'कानून व्याख्यासम्बन्धी',
+        'numberOfQuestions': 33,
+        'durationMinutes': 42,
+        'passMark': 26,
+        'isPremium': false,
+        'isSpecial': false,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_12',
+        'name': 'अदालतका नियमावलीहरु',
+        'numberOfQuestions': 30,
+        'durationMinutes': 40,
+        'passMark': 24,
+        'isPremium': true,
+        'isSpecial': false,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_13',
+        'name': 'अन्तर्राष्ट्रिय कानून',
+        'numberOfQuestions': 45,
+        'durationMinutes': 60,
+        'passMark': 36,
+        'isPremium': false,
+        'isSpecial': true,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_14',
+        'name': 'मानव अधिकारकानून',
+        'numberOfQuestions': 40,
+        'durationMinutes': 55,
+        'passMark': 32,
+        'isPremium': true,
+        'isSpecial': true,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_15',
+        'name': 'कम्पनी कानून',
+        'numberOfQuestions': 50,
+        'durationMinutes': 65,
+        'passMark': 40,
+        'isPremium': false,
+        'isSpecial': true,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_16',
+        'name': 'लैंगिक हिंसा नियन्त्रण कानून',
+        'numberOfQuestions': 35,
+        'durationMinutes': 50,
+        'passMark': 28,
+        'isPremium': true,
+        'isSpecial': true,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_17',
+        'name': 'बाल न्याय तथा बालबालिकासम्बन्धी ऐन',
+        'numberOfQuestions': 38,
+        'durationMinutes': 52,
+        'passMark': 30,
+        'isPremium': false,
+        'isSpecial': true,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_18',
+        'name': 'संगठित अपराध (मानव बेचविखन, लागू औषध, सम्पत्ति शुद्धीकरण)',
+        'numberOfQuestions': 55,
+        'durationMinutes': 70,
+        'passMark': 44,
+        'isPremium': true,
+        'isSpecial': true,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_19',
+        'name': 'विद्युतीय कारोवार सम्बन्धी कानून',
+        'numberOfQuestions': 42,
+        'durationMinutes': 58,
+        'passMark': 34,
+        'isPremium': false,
+        'isSpecial': true,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_20',
+        'name': 'भ्रष्टाचार निवारणसम्बन्धी कानून',
+        'numberOfQuestions': 48,
+        'durationMinutes': 62,
+        'passMark': 38,
+        'isPremium': true,
+        'isSpecial': true,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_21',
+        'name': 'विवाद समाधानका वैकल्पिक उपायहरु',
+        'numberOfQuestions': 36,
+        'durationMinutes': 48,
+        'passMark': 29,
+        'isPremium': false,
+        'isSpecial': true,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_22',
+        'name': 'बौद्धिक सम्पत्तिसम्बन्धी कानून',
+        'numberOfQuestions': 44,
+        'durationMinutes': 56,
+        'passMark': 35,
+        'isPremium': true,
+        'isSpecial': true,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_23',
+        'name': 'कर कानून',
+        'numberOfQuestions': 46,
+        'durationMinutes': 60,
+        'passMark': 37,
+        'isPremium': false,
+        'isSpecial': true,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_24',
+        'name': 'अपराध पीडितसम्बन्धी कानून',
+        'numberOfQuestions': 32,
+        'durationMinutes': 45,
+        'passMark': 26,
+        'isPremium': true,
+        'isSpecial': true,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_25',
+        'name': 'व्यावसायिक आचार संहिता',
+        'numberOfQuestions': 28,
+        'durationMinutes': 40,
+        'passMark': 22,
+        'isPremium': false,
+        'isSpecial': true,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_26',
+        'name': 'वातावरण कानून',
+        'numberOfQuestions': 40,
+        'durationMinutes': 54,
+        'passMark': 32,
+        'isPremium': true,
+        'isSpecial': true,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_27',
+        'name': 'बीमा कानून',
+        'numberOfQuestions': 38,
+        'durationMinutes': 50,
+        'passMark': 30,
+        'isPremium': false,
+        'isSpecial': true,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_28',
+        'name': 'श्रम कानून',
+        'numberOfQuestions': 42,
+        'durationMinutes': 56,
+        'passMark': 34,
+        'isPremium': true,
+        'isSpecial': true,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_29',
+        'name': 'वैकिंग कसूर र बैंक तथा वित्तीय संस्थासम्बन्धी कानून',
+        'numberOfQuestions': 50,
+        'durationMinutes': 65,
+        'passMark': 40,
+        'isPremium': false,
+        'isSpecial': true,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_30',
+        'name': 'अध्यागमन सम्बन्धी कानून',
+        'numberOfQuestions': 34,
+        'durationMinutes': 46,
+        'passMark': 27,
+        'isPremium': true,
+        'isSpecial': true,
+        'hasAttempted': false,
+        'lastAttempt': null,
+      },
+      {
+        'id': 'sub_31',
+        'name': 'कानूनी अनुसन्धान',
+        'numberOfQuestions': 30,
+        'durationMinutes': 42,
+        'passMark': 24,
+        'isPremium': false,
+        'isSpecial': true,
         'hasAttempted': false,
         'lastAttempt': null,
       },
@@ -417,12 +851,20 @@ class QuestionRangeDialog extends StatefulWidget {
 class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
   late int _startIndex;
   late int _endIndex;
-  final int _maxQuestionsForAll = 20; // Maximum for all users
+  final int _maxQuestionsForPremium = 20; // Maximum for premium subjects
+  final int _maxQuestionsForFree = 1000; // No restriction for free subjects
 
   @override
   void initState() {
     super.initState();
-    final maxAllowed = _maxQuestionsForAll; // All users limited to 20
+    final totalQuestions = widget.subject.numberOfQuestions;
+    // Premium subjects: max 20 questions or actual count (whichever is smaller)
+    // Free subjects: actual question count (no restriction)
+    final maxAllowed = widget.subject.isPremium
+        ? (totalQuestions < _maxQuestionsForPremium
+              ? totalQuestions
+              : _maxQuestionsForPremium)
+        : totalQuestions;
 
     _startIndex = 1;
     _endIndex = maxAllowed > 10 ? 10 : maxAllowed;
@@ -436,7 +878,13 @@ class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
   @override
   Widget build(BuildContext context) {
     final totalQuestions = widget.subject.numberOfQuestions;
-    final maxAllowed = _maxQuestionsForAll; // All users limited to 20
+    // Premium subjects: max 20 questions or actual count (whichever is smaller)
+    // Free subjects: actual question count (no restriction)
+    final maxAllowed = widget.subject.isPremium
+        ? (totalQuestions < _maxQuestionsForPremium
+              ? totalQuestions
+              : _maxQuestionsForPremium)
+        : totalQuestions;
 
     return AlertDialog(
       title: Text('प्रश्नको दायरा छान्नुहोस्'),
@@ -446,6 +894,19 @@ class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
           Text(
             '${widget.subject.name} - कुल ${totalQuestions} प्रश्न',
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            widget.subject.isPremium
+                ? 'प्रीमियम विषय: अधिकतम ${maxAllowed} प्रश्न छान्न सकिन्छ'
+                : 'निशुल्क विषय: सबै ${maxAllowed} प्रश्न छान्न सकिन्छ',
+            style: TextStyle(
+              fontSize: 12,
+              color: widget.subject.isPremium
+                  ? Colors.orange.shade700
+                  : Colors.green.shade700,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(height: 16),
 
@@ -509,7 +970,7 @@ class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
             style: const TextStyle(fontWeight: FontWeight.w500),
           ),
 
-          if (totalQuestions > _maxQuestionsForAll) ...[
+          if (totalQuestions > maxAllowed) ...[
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(8),
@@ -527,7 +988,7 @@ class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'अधिकतम $_maxQuestionsForAll प्रश्न मात्र अभ्यास गर्न सकिन्छ।',
+                      'अधिकतम $maxAllowed प्रश्न मात्र अभ्यास गर्न सकिन्छ।',
                       style: TextStyle(
                         color: Colors.orange.shade700,
                         fontSize: 12,
