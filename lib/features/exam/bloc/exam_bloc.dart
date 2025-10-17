@@ -57,10 +57,10 @@ class ExamBloc extends Bloc<ExamEvent, ExamState> {
       const Duration(milliseconds: 800),
     ); // Simulate API call
 
-    // Create attempt data for Phy011 (already attempted)
+    // Create attempt data for Set001 (already attempted)
     final phyAttempt = ExamAttempt(
-      examId: 'Phy011',
-      examTitle: 'भौतिक विज्ञान परीक्षा',
+      examId: 'Set001',
+      examTitle: 'नमुना सेट १',
       studentId: 'student_123',
       studentName: 'Dipak Shah',
       studentEmail: 'appdibetu@gmail.com',
@@ -78,10 +78,10 @@ class ExamBloc extends Bloc<ExamEvent, ExamState> {
       passMark: 40,
     );
 
-    // Create attempt data for Che012 (already attempted)
+    // Create attempt data for Set002 (already attempted)
     final cheAttempt = ExamAttempt(
-      examId: 'Che012',
-      examTitle: 'रसायन विज्ञान आधारभूत',
+      examId: 'Set002',
+      examTitle: 'नमुना सेट २',
       studentId: 'student_123',
       studentName: 'Dipak Shah',
       studentEmail: 'appdibetu@gmail.com',
@@ -99,10 +99,10 @@ class ExamBloc extends Bloc<ExamEvent, ExamState> {
       passMark: 40,
     );
 
-    // Create attempt data for Mat014 (already attempted - free exam)
+    // Create attempt data for Set004 (already attempted - free exam)
     final matAttempt = ExamAttempt(
-      examId: 'Mat014',
-      examTitle: 'गणित मौलिक',
+      examId: 'Set004',
+      examTitle: 'नमुना सेट ४',
       studentId: 'student_123',
       studentName: 'Dipak Shah',
       studentEmail: 'appdibetu@gmail.com',
@@ -120,31 +120,10 @@ class ExamBloc extends Bloc<ExamEvent, ExamState> {
       passMark: 40,
     );
 
-    // Create attempt data for Bio013 (already attempted - premium exam)
-    final bioAttempt = ExamAttempt(
-      examId: 'Bio013',
-      examTitle: 'जीव विज्ञान परीक्षा',
-      studentId: 'student_123',
-      studentName: 'Dipak Shah',
-      studentEmail: 'appdibetu@gmail.com',
-      attemptedAt: DateTime.now().subtract(const Duration(days: 2)),
-      timeTakenSeconds: 2000,
-      totalQuestions: 5,
-      correctCount: 5,
-      wrongCount: 0,
-      unattemptedCount: 0,
-      finalMarks: 100.0,
-      positiveMark: 5,
-      negativeMark: 0,
-      selectedAnswers: {0: 1, 1: 0, 2: 2, 3: 1, 4: 0},
-      isPassed: true,
-      passMark: 40,
-    );
-
     final exams = [
       Exam(
-        id: 'Phy011',
-        name: 'भौतिक विज्ञान परीक्षा',
+        id: 'Set001',
+        name: 'नमुना सेट १',
         description:
             'यो परीक्षाले तपाईंको भौतिक विज्ञानको ज्ञानलाई परख्न मद्दत गर्छ। हाम्रो योग्य टोलीले तयार गरेको।',
         duration: '00:30:00',
@@ -155,8 +134,8 @@ class ExamBloc extends Bloc<ExamEvent, ExamState> {
         lastAttempt: phyAttempt,
       ),
       Exam(
-        id: 'Che012',
-        name: 'रसायन विज्ञान आधारभूत',
+        id: 'Set002',
+        name: 'नमुना सेट २',
         description: 'रसायन विज्ञानको मौलिक ज्ञानको परीक्षा लिनुहोस्।',
         duration: '00:45:00',
         questions: 60,
@@ -166,8 +145,8 @@ class ExamBloc extends Bloc<ExamEvent, ExamState> {
         lastAttempt: cheAttempt,
       ),
       const Exam(
-        id: 'Bio013',
-        name: 'जीव विज्ञान परीक्षा',
+        id: 'Set003',
+        name: 'नमुना सेट ३',
         description:
             'जीव विज्ञानको विभिन्न क्षेत्रहरूमा तपाईंको ज्ञानको मूल्याङ्कन गर्नुहोस्।',
         duration: '00:40:00',
@@ -178,8 +157,8 @@ class ExamBloc extends Bloc<ExamEvent, ExamState> {
         lastAttempt: null,
       ),
       Exam(
-        id: 'Mat014',
-        name: 'गणित मौलिक',
+        id: 'Set004',
+        name: 'नमुना सेट ४',
         description: 'गणितको आधारभूत सिद्धान्तहरूको परीक्षा।',
         duration: '00:40:00',
         questions: 45,
@@ -189,13 +168,35 @@ class ExamBloc extends Bloc<ExamEvent, ExamState> {
         lastAttempt: matAttempt,
       ),
       const Exam(
-        id: 'Eng015',
-        name: 'अंग्रेजी भाषा',
+        id: 'Set005',
+        name: 'नमुना सेट ५',
         description: 'अंग्रेजी भाषाको मौलिक ज्ञानको परीक्षा।',
         duration: '00:35:00',
         questions: 40,
         price: 0.0, // Free exam
         isPremium: false,
+        hasAttempted: false,
+        lastAttempt: null,
+      ),
+      const Exam(
+        id: 'Set006',
+        name: 'नमुना सेट ६',
+        description: 'नेपाली कानून र न्यायिक प्रणालीको गहन अध्ययन।',
+        duration: '01:00:00',
+        questions: 80,
+        price: 50.0, // Paid exam
+        isPremium: true,
+        hasAttempted: false,
+        lastAttempt: null,
+      ),
+      const Exam(
+        id: 'Set007',
+        name: 'नमुना सेट ७',
+        description: 'प्रीमियम आवश्यक - उच्च स्तरको परीक्षा।',
+        duration: '01:30:00',
+        questions: 100,
+        price: 100.0, // Premium required exam
+        isPremium: true,
         hasAttempted: false,
         lastAttempt: null,
       ),

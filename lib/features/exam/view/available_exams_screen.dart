@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 // This relative path goes up one folder from 'view' to 'exam', then down into 'bloc'
 import '../bloc/exam_bloc.dart';
@@ -7,7 +8,6 @@ import '../../exam_taking/view/exam_taking_screen.dart';
 import '../../exam_taking/view/exam_result_screen.dart';
 import '../../exam_taking/bloc/exam_taking_bloc.dart';
 import '../../exam_taking/models/exam_attempt_model.dart';
-import '../../exam_taking/models/exam_question_model.dart';
 import '../../../core/network/exam_service.dart';
 
 class AvailableExamsScreen extends StatelessWidget {
@@ -62,16 +62,18 @@ class AvailableExamsScreen extends StatelessWidget {
     final bool isDisabled = exam.isPremium && !userHasPremium;
 
     return Card(
-      elevation: 2,
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Header row
             Row(
               children: [
+                // Status indicator
                 Container(
                   width: 8,
                   height: 8,
@@ -81,37 +83,169 @@ class AvailableExamsScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
+                // Exam title with exam code
                 Expanded(
-                  child: Text(
-                    exam.name,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: isDisabled ? Colors.grey : Colors.black87,
+                  child: GestureDetector(
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: exam.id));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('${exam.id} क्लिपबोर्डमा कपी भयो'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    child: RichText(
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                            text: '${exam.id.toUpperCase()} | ',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                          TextSpan(
+                            text: exam.name,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                // Premium/Non-premium icon (no background)
+                // Price badge
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: exam.isPremium
+                        ? AppColors.primary.withValues(alpha: 0.1)
+                        : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    exam.isPremium ? 'रु. ${exam.price.toInt()}' : 'रु. ०',
+                    style: TextStyle(
+                      color: exam.isPremium
+                          ? AppColors.primary
+                          : Colors.grey.shade600,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Premium/Non-premium icon
                 Icon(
                   exam.isPremium ? Icons.lock : Icons.lock_open,
                   size: 12,
                   color: exam.isPremium
-                      ? Colors.red.withValues(alpha: 0.6)
-                      : Colors.green.withValues(alpha: 0.6),
+                      ? AppColors.primary
+                      : Colors.grey.shade600,
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              exam.description,
-              style: TextStyle(
-                color: isDisabled ? Colors.grey : Colors.black54,
-                fontSize: 14,
-              ),
+            // Attempt status and Premium/Free status
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: exam.hasAttempted
+                        ? AppColors.primary.withValues(alpha: 0.1)
+                        : Colors.grey.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: exam.hasAttempted
+                          ? AppColors.primary.withValues(alpha: 0.3)
+                          : Colors.grey.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        exam.hasAttempted ? Icons.check_circle : Icons.schedule,
+                        size: 12,
+                        color: exam.hasAttempted
+                            ? AppColors.primary
+                            : Colors.grey.shade600,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        exam.hasAttempted ? 'Attempted' : 'Unattempted',
+                        style: TextStyle(
+                          color: exam.hasAttempted
+                              ? AppColors.primary
+                              : Colors.grey.shade700,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 9,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: exam.isPremium
+                        ? AppColors.primary.withValues(alpha: 0.1)
+                        : Colors.grey.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: exam.isPremium
+                          ? AppColors.primary.withValues(alpha: 0.3)
+                          : Colors.grey.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        exam.isPremium ? Icons.lock : Icons.lock_open,
+                        size: 12,
+                        color: exam.isPremium
+                            ? AppColors.primary
+                            : Colors.grey.shade600,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        exam.isPremium ? 'प्रीमियम' : 'निःशुल्क',
+                        style: TextStyle(
+                          color: exam.isPremium
+                              ? AppColors.primary
+                              : Colors.grey.shade700,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 9,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             const Divider(height: 1),
             const SizedBox(height: 12),
+            // Stats row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -120,75 +254,85 @@ class AvailableExamsScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: exam.isPremium
-                        ? () {
-                            // Handle payment for premium exams
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Payment for ${exam.name} - रु. ${exam.price.toInt()}',
-                                ),
+            // Single action button
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.primary,
+                      AppColors.primary.withValues(alpha: 0.8),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      if (exam.hasAttempted) {
+                        if (exam.isPremium && !userHasPremium) {
+                          // Show premium upgrade dialog for attempted premium exams
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'प्रीमियम सदस्यता आवश्यक - रु. ${exam.price.toInt()}',
                               ),
-                            );
-                          }
-                        : null, // Disabled for free exams
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: exam.isPremium
-                          ? Colors
-                                .orange // Always orange for premium exams
-                          : Colors.grey, // Grey for free exams
-                      side: BorderSide(
-                        color: exam.isPremium
-                            ? Colors
-                                  .orange // Always orange border for premium exams
-                            : Colors.grey, // Grey border for free exams
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
+                        } else {
+                          // Navigate to result screen for attempted exams
+                          _navigateToResultScreen(context, exam);
+                        }
+                      } else if (exam.isPremium && !userHasPremium) {
+                        // Show premium upgrade dialog or navigate to premium page
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'प्रीमियम सदस्यता आवश्यक - रु. ${exam.price.toInt()}',
+                            ),
+                            duration: const Duration(seconds: 3),
+                          ),
+                        );
+                      } else {
+                        // Navigate to exam taking screen for new exams
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ExamTakingScreen(examId: exam.id),
+                          ),
+                        );
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Center(
+                      child: Text(
+                        exam.hasAttempted
+                            ? (exam.isPremium ? 'प्रीमियम आवश्यक' : 'परीक्षाफल')
+                            : (exam.isPremium && !userHasPremium)
+                            ? 'प्रीमियम आवश्यक'
+                            : 'परीक्षा दिनुहोस्',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: Text(
-                      exam.isPremium ? 'रु. ${exam.price.toInt()}' : 'रु. ०',
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: isDisabled
-                        ? null
-                        : () {
-                            if (exam.hasAttempted) {
-                              // Navigate to result screen for attempted exams
-                              _navigateToResultScreen(context, exam);
-                            } else {
-                              // Navigate to exam taking screen for new exams
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      ExamTakingScreen(examId: exam.id),
-                                ),
-                              );
-                            }
-                          },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDisabled
-                          ? Colors.grey
-                          : AppColors.primary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: Text(
-                      exam.hasAttempted ? 'परीक्षाफल' : 'परीक्षा दिनुहोस्',
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ],
         ),
