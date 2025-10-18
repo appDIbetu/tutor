@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import '../bloc/home_bloc.dart';
@@ -16,12 +17,17 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Set status bar to white text/icons
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+      ),
+    );
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: AppBar(backgroundColor: AppColors.primary, elevation: 0),
-      ),
       body: BlocBuilder<HomeBloc, HomeState>(
         builder: (context, state) {
           if (state is HomeLoadInProgress || state is HomeInitial) {
@@ -45,7 +51,7 @@ class HomeScreen extends StatelessWidget {
                           userName = state.userName;
                         }
                         return SizedBox(
-                          height: 225,
+                          height: 320,
                           child: Stack(
                             clipBehavior: Clip.none,
                             children: [
@@ -53,14 +59,14 @@ class HomeScreen extends StatelessWidget {
                                 top: 0,
                                 left: 0,
                                 right: 0,
-                                bottom: 65,
+                                bottom: 75,
                                 child: Container(
                                   color: AppColors.primary,
                                   padding: const EdgeInsets.fromLTRB(
                                     16,
-                                    0,
+                                    80,
                                     16,
-                                    20,
+                                    80,
                                   ),
                                   alignment: Alignment.topLeft,
                                   child: Text(
@@ -76,7 +82,7 @@ class HomeScreen extends StatelessWidget {
                               Positioned(
                                 left: 16,
                                 right: 16,
-                                bottom: 0,
+                                bottom: 10,
                                 child: ExamCodeCard(),
                               ),
                             ],
@@ -85,7 +91,7 @@ class HomeScreen extends StatelessWidget {
                       },
                     ),
                   ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 25)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 16.0)),
                   SliverToBoxAdapter(
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -152,6 +158,7 @@ class HomeScreen extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       elevation: 2,
+      color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
       child: InkWell(
         onTap: () {
@@ -208,8 +215,15 @@ class HomeScreen extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.1),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withValues(alpha: 0.2),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: const Row(
             children: [
@@ -288,8 +302,15 @@ class _PromoCarouselWidgetState extends State<_PromoCarouselWidget> {
               final promo = promoData[index];
               return Container(
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withValues(alpha: 0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(20),

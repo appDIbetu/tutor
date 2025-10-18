@@ -257,6 +257,7 @@ class _MasyaudaSubjectsScreenState extends State<MasyaudaSubjectsScreen> {
     return Card(
       margin: EdgeInsets.zero,
       elevation: 0,
+      color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(

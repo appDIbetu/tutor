@@ -102,6 +102,7 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
     return Card(
       margin: EdgeInsets.zero,
       elevation: 0,
+      color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(

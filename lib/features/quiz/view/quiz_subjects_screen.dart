@@ -207,6 +207,7 @@ class _QuizSubjectsScreenState extends State<QuizSubjectsScreen> {
     return Card(
       margin: EdgeInsets.zero,
       elevation: 0,
+      color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(

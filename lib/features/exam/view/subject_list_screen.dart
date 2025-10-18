@@ -168,6 +168,7 @@ class _SubjectTile extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       elevation: 2,
+      color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
       child: Padding(
         padding: const EdgeInsets.all(16),

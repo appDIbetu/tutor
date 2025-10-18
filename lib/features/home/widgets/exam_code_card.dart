@@ -43,6 +43,7 @@ class _ExamCodeCardState extends State<ExamCodeCard> {
       // Let the parent Positioned control horizontal insets exactly.
       margin: EdgeInsets.zero,
       elevation: 4,
+      color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),

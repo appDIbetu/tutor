@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 // This is a relative path. It goes "up" one level from the 'view' folder
 // and then "down" into the 'bloc' folder.
@@ -10,14 +11,17 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Set status bar to white text/icons
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+      ),
+    );
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        automaticallyImplyLeading: false,
-        title: const Text('Profile'),
-        elevation: 0,
-      ),
       body: BlocBuilder<ProfileBloc, ProfileState>(
         builder: (context, state) {
           if (state is ProfileLoadInProgress || state is ProfileInitial) {
@@ -48,6 +52,7 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   const Text('About us | Privacy'),
+                  const SizedBox(height: 20),
                 ],
               ),
             );
@@ -62,6 +67,7 @@ class ProfileScreen extends StatelessWidget {
     return Container(
       width: double.infinity,
       color: AppColors.primary,
+      padding: const EdgeInsets.only(top: 70, bottom: 0),
       child: Column(
         children: [
           const SizedBox(height: 20),
