@@ -48,3 +48,10 @@ app.*.map.json
 *.keystore
 *.jks
 key.properties
+
+# Firebase configuration files
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+ios/GoogleService-Info.plist
+macos/Runner/GoogleService-Info.plist
+web/firebase-config.js
