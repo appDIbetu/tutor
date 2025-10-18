@@ -5,6 +5,7 @@ import 'package:carousel_slider/carousel_slider.dart';
 import '../bloc/home_bloc.dart';
 import '../widgets/exam_code_card.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/helpers/premium_access_helper.dart';
 import '../../exam/view/available_exams_screen.dart';
 import '../../exam/view/subject_list_screen.dart';
 import '../../notes/view/notes_subjects_screen.dart';
@@ -25,6 +26,8 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     // Load home data when screen initializes
     context.read<HomeBloc>().add(HomeDataLoaded());
+    // Refresh premium status
+    context.requestPremiumStatus();
   }
 
   @override
@@ -176,10 +179,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: () {
           if (label == 'विषयगत प्रश्नोत्तर') {
             Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) =>
-                    SubjectListScreen.network(userHasPremium: false),
-              ),
+              MaterialPageRoute(builder: (_) => SubjectListScreen.network()),
             );
           } else if (label == 'वस्तुगत सेटहरु') {
             Navigator.of(context).push(

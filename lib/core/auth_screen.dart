@@ -88,6 +88,8 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
               ),
             );
+          } else if (state is AuthAlreadyLoggedInElsewhere) {
+            _showAlreadyLoggedInDialog(context, state.message);
           }
         },
         child: SafeArea(
@@ -613,5 +615,41 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
       );
     }
+  }
+
+  void _showAlreadyLoggedInDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+              const SizedBox(width: 12),
+              const Text(
+                'Already Logged In',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: Text(message, style: const TextStyle(fontSize: 16)),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text(
+                'OK',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

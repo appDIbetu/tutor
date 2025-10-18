@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/auth/auth_bloc.dart';
+import '../../../core/premium/premium_bloc.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/auth_screen.dart';
 
@@ -23,6 +24,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _loadUserData();
+    // Request premium status when screen loads
+    context.read<PremiumBloc>().add(PremiumStatusRequested());
   }
 
   Future<void> _loadUserData() async {
@@ -153,9 +156,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
             email,
             style: const TextStyle(color: Colors.white70, fontSize: 14),
           ),
-          const Text(
-            'Basic Plan',
-            style: TextStyle(color: Colors.white70, fontSize: 12),
+          BlocBuilder<PremiumBloc, PremiumState>(
+            builder: (context, premiumState) {
+              final isPremium = premiumState is PremiumActive;
+              final planName = isPremium ? 'Premium Plan' : 'Basic Plan';
+
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    planName,
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                  if (!isPremium) ...[
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () => _showUpgradeDialog(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          'Upgrade',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
           ),
           const SizedBox(height: 20),
           Container(
@@ -291,6 +330,72 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 backgroundColor: AppColors.primary,
               ),
               child: const Text('Sign Out'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showUpgradeDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.star, color: AppColors.primary, size: 28),
+              const SizedBox(width: 12),
+              const Text(
+                'Upgrade to Premium',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Unlock all premium features including unlimited practice tests, advanced analytics, and priority support.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Maybe Later'),
+            ),
+            BlocListener<AuthBloc, AuthState>(
+              listener: (context, state) {
+                if (state is AuthLoading) {
+                  // Show loading indicator
+                } else if (state is AuthAuthenticated) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Successfully upgraded to Premium!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                  // Refresh premium status
+                  context.read<PremiumBloc>().add(PremiumStatusRefreshed());
+                } else if (state is AuthError) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Upgrade failed: ${state.message}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              child: ElevatedButton(
+                onPressed: () {
+                  context.read<AuthBloc>().add(AuthUpgradeToPremiumRequested());
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                ),
+                child: const Text('Upgrade Now'),
+              ),
             ),
           ],
         );

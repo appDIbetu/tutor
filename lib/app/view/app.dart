@@ -9,6 +9,7 @@ import '../../features/profile/bloc/profile_bloc.dart';
 import '../../features/home/bloc/home_bloc.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/auth/auth_bloc.dart';
+import '../../core/premium/premium_bloc.dart';
 import '../../core/splash_screen.dart';
 
 class MyApp extends StatelessWidget {
@@ -19,6 +20,7 @@ class MyApp extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(create: (context) => AuthBloc()),
+        BlocProvider(create: (context) => PremiumBloc()),
         BlocProvider(create: (context) => HomeBloc()..add(HomeDataLoaded())),
         BlocProvider(
           create: (context) => ProfileBloc()..add(ProfileDataLoaded()),

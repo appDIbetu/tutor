@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/premium/premium_bloc.dart';
+import '../../../core/helpers/premium_access_helper.dart';
 import '../../exam_taking/view/exam_taking_screen.dart';
 import '../../exam_taking/models/exam_attempt_model.dart';
 
@@ -98,27 +101,34 @@ void _showQuestionRangeDialog(
   );
 }
 
-class SubjectListScreen extends StatelessWidget {
+class SubjectListScreen extends StatefulWidget {
   final List<Subject> subjects;
   final Future<List<Subject>>? futureSubjects;
-  final bool userHasPremium;
   final void Function(Subject subject)? onAttempt;
 
   const SubjectListScreen({
     super.key,
     required this.subjects,
     this.futureSubjects,
-    this.userHasPremium = false,
     this.onAttempt,
   });
 
   // Convenience constructor to load from network
-  SubjectListScreen.network({
-    super.key,
-    this.userHasPremium = false,
-    this.onAttempt,
-  }) : subjects = const [],
-       futureSubjects = SubjectService.fetchSubjects();
+  SubjectListScreen.network({super.key, this.onAttempt})
+    : subjects = const [],
+      futureSubjects = SubjectService.fetchSubjects();
+
+  @override
+  State<SubjectListScreen> createState() => _SubjectListScreenState();
+}
+
+class _SubjectListScreenState extends State<SubjectListScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Refresh premium status when screen loads
+    context.requestPremiumStatus();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -133,21 +143,27 @@ class SubjectListScreen extends StatelessWidget {
           style: TextStyle(color: Colors.white),
         ),
       ),
-      body: futureSubjects == null
-          ? _buildList(context, subjects, userHasPremium)
-          : FutureBuilder<List<Subject>>(
-              future: futureSubjects,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
-                final items = snapshot.data ?? const [];
-                return _buildList(context, items, userHasPremium);
-              },
-            ),
+      body: BlocBuilder<PremiumBloc, PremiumState>(
+        builder: (context, premiumState) {
+          final userHasPremium = premiumState is PremiumActive;
+
+          return widget.futureSubjects == null
+              ? _buildList(context, widget.subjects, userHasPremium)
+              : FutureBuilder<List<Subject>>(
+                  future: widget.futureSubjects,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                      return Center(child: Text('Error: ${snapshot.error}'));
+                    }
+                    final items = snapshot.data ?? const [];
+                    return _buildList(context, items, userHasPremium);
+                  },
+                );
+        },
+      ),
     );
   }
 }
@@ -449,7 +465,6 @@ class DemoSubjectListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SubjectListScreen.network(
-      userHasPremium: false,
       onAttempt: (subject) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Attempting ${subject.name}...')),
@@ -853,7 +868,6 @@ class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
   late int _startIndex;
   late int _endIndex;
   final int _maxQuestionsForPremium = 20; // Maximum for premium subjects
-  final int _maxQuestionsForFree = 1000; // No restriction for free subjects
 
   @override
   void initState() {

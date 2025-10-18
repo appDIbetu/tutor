@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
+import '../models/firebase_user_response.dart';
 
 // Events
 abstract class AuthEvent extends Equatable {
@@ -54,6 +55,12 @@ class AuthProfileUpdateRequested extends AuthEvent {
   List<Object> get props => [name, mobile];
 }
 
+class AuthBackendValidationRequested extends AuthEvent {}
+
+class AuthRefreshUserDataRequested extends AuthEvent {}
+
+class AuthUpgradeToPremiumRequested extends AuthEvent {}
+
 // States
 abstract class AuthState extends Equatable {
   const AuthState();
@@ -69,14 +76,16 @@ class AuthLoading extends AuthState {}
 class AuthAuthenticated extends AuthState {
   final User user;
   final bool isProfileComplete;
+  final FirebaseUserResponse? firebaseUserData;
 
   const AuthAuthenticated({
     required this.user,
     required this.isProfileComplete,
+    this.firebaseUserData,
   });
 
   @override
-  List<Object> get props => [user, isProfileComplete];
+  List<Object?> get props => [user, isProfileComplete, firebaseUserData];
 }
 
 class AuthUnauthenticated extends AuthState {}
@@ -85,6 +94,15 @@ class AuthError extends AuthState {
   final String message;
 
   const AuthError({required this.message});
+
+  @override
+  List<Object> get props => [message];
+}
+
+class AuthAlreadyLoggedInElsewhere extends AuthState {
+  final String message;
+
+  const AuthAlreadyLoggedInElsewhere({required this.message});
 
   @override
   List<Object> get props => [message];
@@ -99,13 +117,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthGoogleSignInRequested>(_onAuthGoogleSignInRequested);
     on<AuthSignOutRequested>(_onAuthSignOutRequested);
     on<AuthProfileUpdateRequested>(_onAuthProfileUpdateRequested);
+    on<AuthBackendValidationRequested>(_onAuthBackendValidationRequested);
+    on<AuthRefreshUserDataRequested>(_onAuthRefreshUserDataRequested);
+    on<AuthUpgradeToPremiumRequested>(_onAuthUpgradeToPremiumRequested);
 
     // Listen to auth state changes
     AuthService.authStateChanges.listen((User? user) {
       if (user != null) {
-        _checkProfileCompleteness(user);
+        add(AuthCheckRequested());
       } else {
-        emit(AuthUnauthenticated());
+        add(AuthCheckRequested());
       }
     });
   }
@@ -116,7 +137,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     final user = AuthService.currentUser;
     if (user != null) {
-      await _checkProfileCompleteness(user);
+      // Always validate with backend on app startup
+      try {
+        final userData = await AuthService.validateUserWithBackend();
+        if (userData != null) {
+          await AuthService.saveFirebaseUserData(userData);
+          await _checkProfileCompleteness(user, emit);
+        } else {
+          // If backend validation fails, sign out
+          await AuthService.signOut();
+          emit(AuthUnauthenticated());
+        }
+      } catch (e) {
+        // If backend validation fails, sign out
+        await AuthService.signOut();
+        emit(AuthUnauthenticated());
+      }
     } else {
       emit(AuthUnauthenticated());
     }
@@ -134,12 +170,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       );
 
       if (result?.user != null) {
-        await _checkProfileCompleteness(result!.user!);
+        await _checkProfileCompleteness(result!.user!, emit);
       } else {
         emit(const AuthError(message: 'Sign in failed'));
       }
     } catch (e) {
-      emit(AuthError(message: e.toString()));
+      if (e.toString().contains('already logged in')) {
+        emit(
+          AuthAlreadyLoggedInElsewhere(
+            message:
+                'You are already logged in on another device. Please logout from there to login here.',
+          ),
+        );
+      } else {
+        emit(AuthError(message: e.toString()));
+      }
     }
   }
 
@@ -175,12 +220,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final result = await AuthService.signInWithGoogle();
 
       if (result?.user != null) {
-        await _checkProfileCompleteness(result!.user!);
+        await _checkProfileCompleteness(result!.user!, emit);
       } else {
         emit(const AuthError(message: 'Google sign in failed'));
       }
     } catch (e) {
-      emit(AuthError(message: e.toString()));
+      if (e.toString().contains('already logged in')) {
+        emit(
+          AuthAlreadyLoggedInElsewhere(
+            message:
+                'You are already logged in on another device. Please logout from there to login here.',
+          ),
+        );
+      } else {
+        emit(AuthError(message: e.toString()));
+      }
     }
   }
 
@@ -201,20 +255,100 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthProfileUpdateRequested event,
     Emitter<AuthState> emit,
   ) async {
+    emit(AuthLoading());
     try {
       await AuthService.updateProfile(name: event.name, mobile: event.mobile);
 
       final user = AuthService.currentUser;
       if (user != null) {
         emit(AuthAuthenticated(user: user, isProfileComplete: true));
+      } else {
+        emit(const AuthError(message: 'No user found after profile update'));
       }
     } catch (e) {
       emit(AuthError(message: e.toString()));
     }
   }
 
-  Future<void> _checkProfileCompleteness(User user) async {
+  Future<void> _checkProfileCompleteness(
+    User user, [
+    Emitter<AuthState>? emit,
+  ]) async {
     final isComplete = await AuthService.isProfileComplete();
-    emit(AuthAuthenticated(user: user, isProfileComplete: isComplete));
+    final firebaseUserData = await AuthService.getSavedFirebaseUserData();
+    if (emit != null) {
+      emit(
+        AuthAuthenticated(
+          user: user,
+          isProfileComplete: isComplete,
+          firebaseUserData: firebaseUserData,
+        ),
+      );
+    }
+  }
+
+  Future<void> _onAuthBackendValidationRequested(
+    AuthBackendValidationRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    try {
+      final userData = await AuthService.validateUserWithBackend();
+      if (userData != null) {
+        await AuthService.saveFirebaseUserData(userData);
+        final user = AuthService.currentUser;
+        if (user != null) {
+          await _checkProfileCompleteness(user, emit);
+        }
+      }
+    } catch (e) {
+      if (e.toString().contains('already logged in')) {
+        emit(
+          AuthAlreadyLoggedInElsewhere(
+            message:
+                'You are already logged in on another device. Please logout from there to login here.',
+          ),
+        );
+      } else {
+        emit(AuthError(message: e.toString()));
+      }
+    }
+  }
+
+  Future<void> _onAuthRefreshUserDataRequested(
+    AuthRefreshUserDataRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    try {
+      final userData = await AuthService.validateUserWithBackend();
+      if (userData != null) {
+        await AuthService.saveFirebaseUserData(userData);
+        final user = AuthService.currentUser;
+        if (user != null) {
+          await _checkProfileCompleteness(user, emit);
+        }
+      }
+    } catch (e) {
+      emit(AuthError(message: e.toString()));
+    }
+  }
+
+  Future<void> _onAuthUpgradeToPremiumRequested(
+    AuthUpgradeToPremiumRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+    try {
+      final success = await AuthService.upgradeToPremium();
+      if (success) {
+        final user = AuthService.currentUser;
+        if (user != null) {
+          await _checkProfileCompleteness(user, emit);
+        }
+      } else {
+        emit(const AuthError(message: 'Failed to upgrade to premium'));
+      }
+    } catch (e) {
+      emit(AuthError(message: e.toString()));
+    }
   }
 }

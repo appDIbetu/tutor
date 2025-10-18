@@ -138,7 +138,6 @@ class PdfCacheService {
 
       final etag = headResponse.headers['etag'];
       final lastModified = headResponse.headers['last-modified'];
-      final contentLength = headResponse.headers['content-length'];
 
       // Check if we already have a valid cached version
       if (await isCachedAndValid(url)) {

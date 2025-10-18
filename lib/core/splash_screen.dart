@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../core/auth/auth_bloc.dart';
+import '../core/premium/premium_bloc.dart';
 import '../core/constants/app_colors.dart';
 import 'auth_screen.dart';
 import 'main_app.dart';
@@ -54,10 +55,13 @@ class _SplashScreenState extends State<SplashScreen>
 
     _animationController.forward();
 
-    // Check authentication after animation
+    // Check authentication and premium status after animation
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
+        // First check authentication
         context.read<AuthBloc>().add(AuthCheckRequested());
+        // Then validate premium status
+        context.read<PremiumBloc>().add(PremiumStatusRequested());
       }
     });
   }

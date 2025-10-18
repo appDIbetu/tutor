@@ -3,12 +3,16 @@ import 'package:http/http.dart' as http;
 import '../services/auth_service.dart';
 
 class ApiService {
-  static const String baseUrl =
-      'https://your-api-server.com/api'; // Replace with your actual API URL
+  static const String baseUrl = 'https://bkd.pdfy.cloud';
 
   // Get headers with ID token for authenticated requests
   static Future<Map<String, String>> _getHeaders() async {
     final token = await AuthService.getIdToken();
+    if (token == null) {
+      print('Warning: No ID token available for API request');
+    } else {
+      print('ID token available: ${token.substring(0, 20)}...');
+    }
     return {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $token',
@@ -99,6 +103,64 @@ class ApiService {
     } catch (e) {
       print('DELETE request error: $e');
       return false;
+    }
+  }
+
+  // Update Firebase user profile
+  static Future<Map<String, dynamic>?> updateFirebaseUserProfile(
+    Map<String, dynamic> updateData,
+  ) async {
+    try {
+      final headers = await _getHeaders();
+      print('Updating Firebase user profile with data: $updateData');
+      print('Headers: $headers');
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/api/v1/firebase/profile'),
+        headers: headers,
+        body: json.encode(updateData),
+      );
+
+      print('Profile update response status: ${response.statusCode}');
+      print('Profile update response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final result = json.decode(response.body);
+        print('Profile update successful: $result');
+        return result;
+      } else {
+        print(
+          'Profile update failed: ${response.statusCode} - ${response.body}',
+        );
+        return null;
+      }
+    } catch (e) {
+      print('Profile update error: $e');
+      return null;
+    }
+  }
+
+  // Firebase user endpoint
+  static Future<Map<String, dynamic>?> getFirebaseUser() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/v1/firebase/me'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else if (response.statusCode == 401) {
+        // User is already logged in elsewhere
+        throw Exception('User already logged in on another device');
+      } else {
+        print('Firebase user request failed: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('Firebase user request error: $e');
+      rethrow;
     }
   }
 
