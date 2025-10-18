@@ -63,16 +63,16 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Ensure status bar stays red with white icons
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: AppColors.primary,
-        statusBarIconBrightness: Brightness.light,
-        statusBarBrightness: Brightness.dark,
-      ),
-    );
-
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: AppColors.primary,
+        elevation: 0,
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: AppColors.primary,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+        ),
+      ),
       backgroundColor: AppColors.background,
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
@@ -96,7 +96,6 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                 // Header
                 Container(
                   width: double.infinity,
-                  height: 200,
                   decoration: const BoxDecoration(
                     color: AppColors.primary,
                     borderRadius: BorderRadius.only(
@@ -104,44 +103,57 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                       bottomRight: Radius.circular(30),
                     ),
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(15),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 20,
+                      horizontal: 16,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: MediaQuery.of(context).size.width * 0.15,
+                          height: MediaQuery.of(context).size.width * 0.15,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.person_add,
+                            size: MediaQuery.of(context).size.width * 0.075,
+                            color: AppColors.primary,
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.person_add,
-                          size: 40,
-                          color: AppColors.primary,
+                        SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.01,
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Complete Your Profile',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                        Text(
+                          'Complete Your Profile',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: MediaQuery.of(context).size.width * 0.055,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Help us personalize your experience',
-                        style: TextStyle(color: Colors.white70, fontSize: 16),
-                      ),
-                    ],
+                        SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.005,
+                        ),
+                        Text(
+                          'Help us personalize your experience',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: MediaQuery.of(context).size.width * 0.038,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
 
