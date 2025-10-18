@@ -45,6 +45,10 @@ dependencies:
   crypto: ^3.0.3
   syncfusion_flutter_pdfviewer: ^31.2.2
   google_nav_bar: ^5.0.7
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  google_sign_in: ^6.2.1
+  shared_preferences: ^2.3.2
 
 dev_dependencies:
   flutter_test:

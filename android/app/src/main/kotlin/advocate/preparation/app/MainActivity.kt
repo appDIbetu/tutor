@@ -1,4 +1,4 @@
-package com.example.new_app
+package advocate.preparation.app
 
 import io.flutter.embedding.android.FlutterActivity
 

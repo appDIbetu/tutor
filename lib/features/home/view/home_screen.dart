@@ -12,8 +12,20 @@ import '../../masyauda/view/masyauda_subjects_screen.dart';
 import '../../bastugat/view/bastugat_subjects_screen.dart';
 import '../../quiz/view/quiz_subjects_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Load home data when screen initializes
+    context.read<HomeBloc>().add(HomeDataLoaded());
+  }
 
   @override
   Widget build(BuildContext context) {

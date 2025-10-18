@@ -1,5 +1,7 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 part 'home_event.dart';
 part 'home_state.dart';
@@ -16,15 +18,25 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   ) async {
     emit(HomeLoadInProgress());
     try {
-      // --- FAKE API CALL ---
-      // In a real app, you would fetch data from a repository:
-      // final user = await _userRepository.getUser();
-      // final topics = await _topicRepository.getTopics();
-      await Future.delayed(
-        const Duration(seconds: 1),
-      ); // Simulate network delay
+      // Get user name from Firebase Auth and SharedPreferences
+      String userName = 'Guest';
 
-      emit(const HomeLoadSuccess(userName: 'Shivam Chaudhary'));
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Try to get name from Firebase Auth first
+        if (user.displayName != null && user.displayName!.isNotEmpty) {
+          userName = user.displayName!;
+        } else {
+          // Fallback to SharedPreferences
+          final prefs = await SharedPreferences.getInstance();
+          final savedName = prefs.getString('user_name') ?? '';
+          if (savedName.isNotEmpty && savedName != 'NA') {
+            userName = savedName;
+          }
+        }
+      }
+
+      emit(HomeLoadSuccess(userName: userName));
     } catch (e) {
       emit(HomeLoadFailure(error: e.toString()));
     }

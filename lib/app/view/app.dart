@@ -6,9 +6,10 @@ import '../../features/calendar/bloc/calendar_bloc.dart';
 import '../../features/exam/bloc/exam_bloc.dart';
 import '../../features/feed/bloc/feed_bloc.dart';
 import '../../features/profile/bloc/profile_bloc.dart';
-import '../../features/dashboard/view/dashboard_screen.dart';
 import '../../features/home/bloc/home_bloc.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/auth/auth_bloc.dart';
+import '../../core/splash_screen.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -17,6 +18,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
+        BlocProvider(create: (context) => AuthBloc()),
         BlocProvider(create: (context) => HomeBloc()..add(HomeDataLoaded())),
         BlocProvider(
           create: (context) => ProfileBloc()..add(ProfileDataLoaded()),
@@ -28,7 +30,7 @@ class MyApp extends StatelessWidget {
         BlocProvider(create: (context) => FeedBloc()..add(FeedDataLoaded())),
       ],
       child: MaterialApp(
-        title: 'MCQ App',
+        title: 'Legal Practice App',
         theme: ThemeData(
           fontFamily: 'Poppins',
           colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary)
@@ -61,7 +63,7 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        home: const DashboardScreen(),
+        home: const SplashScreen(),
       ),
     );
   }

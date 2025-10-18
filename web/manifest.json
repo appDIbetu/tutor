@@ -1,11 +1,11 @@
 {
-    "name": "new_app",
-    "short_name": "new_app",
+    "name": "Advocate Preparation",
+    "short_name": "Advocate Prep",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Legal Practice Preparation App for Advocates",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -1,13 +1,57 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-// This is a relative path. It goes "up" one level from the 'view' folder
-// and then "down" into the 'bloc' folder.
-import '../bloc/profile_bloc.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/auth/auth_bloc.dart';
+import '../../../core/services/auth_service.dart';
+import '../../../core/auth_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  Map<String, String> userData = {};
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      final prefs = await SharedPreferences.getInstance();
+
+      // Migrate any existing empty strings to "NA"
+      await AuthService.migrateEmptyStringsToNA();
+
+      setState(() {
+        final savedName = prefs.getString('user_name') ?? '';
+        final savedEmail = prefs.getString('user_email') ?? '';
+        final savedMobile = prefs.getString('user_mobile') ?? '';
+
+        userData = {
+          'name': user?.displayName ?? (savedName.isEmpty ? 'NA' : savedName),
+          'email': user?.email ?? (savedEmail.isEmpty ? 'NA' : savedEmail),
+          'mobile': savedMobile.isEmpty ? 'NA' : savedMobile,
+        };
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        userData = {'name': 'NA', 'email': 'NA', 'mobile': 'NA'};
+        isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,50 +64,67 @@ class ProfileScreen extends StatelessWidget {
       ),
     );
 
+    if (isLoading) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: BlocBuilder<ProfileBloc, ProfileState>(
-        builder: (context, state) {
-          if (state is ProfileLoadInProgress || state is ProfileInitial) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (state is ProfileLoadFailure) {
-            return Center(child: Text('Error: ${state.error}'));
-          }
-          if (state is ProfileLoadSuccess) {
-            final user = state.userProfile;
-            return SingleChildScrollView(
-              child: Column(
-                children: [
-                  _buildHeader(context, user),
-                  const SizedBox(height: 20),
-                  _buildInfoCard(user),
-                  const SizedBox(height: 20),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        minimumSize: const Size(double.infinity, 50),
-                      ),
-                      child: const Text('SIGN OUT'),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text('About us | Privacy'),
-                  const SizedBox(height: 20),
-                ],
-              ),
+      body: BlocListener<AuthBloc, AuthState>(
+        listener: (context, state) {
+          if (state is AuthUnauthenticated) {
+            // Navigate directly to auth screen
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const AuthScreen()),
+              (route) => false,
             );
           }
-          return const SizedBox.shrink();
         },
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildHeader(context),
+              const SizedBox(height: 20),
+              _buildInfoCard(),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: ElevatedButton(
+                  onPressed: () {
+                    _showLogoutDialog(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    minimumSize: const Size(double.infinity, 50),
+                  ),
+                  child: const Text('SIGN OUT'),
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text('About us | Privacy'),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context, UserProfile user) {
+  Widget _buildHeader(BuildContext context) {
+    final name = userData['name'] ?? 'NA';
+    final email = userData['email'] ?? 'NA';
+    final initials = name.isNotEmpty && name != 'NA'
+        ? name
+              .split(' ')
+              .map((e) => e.isNotEmpty ? e[0] : '')
+              .take(2)
+              .join('')
+              .toUpperCase()
+        : 'U';
+
     return Container(
       width: double.infinity,
       color: AppColors.primary,
@@ -71,17 +132,17 @@ class ProfileScreen extends StatelessWidget {
       child: Column(
         children: [
           const SizedBox(height: 20),
-          const CircleAvatar(
+          CircleAvatar(
             radius: 40,
             backgroundColor: Colors.white,
             child: Text(
-              'S',
-              style: TextStyle(fontSize: 40, color: AppColors.primary),
+              initials,
+              style: const TextStyle(fontSize: 40, color: AppColors.primary),
             ),
           ),
           const SizedBox(height: 10),
           Text(
-            user.name,
+            name,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 18,
@@ -89,7 +150,7 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
           Text(
-            user.email,
+            email,
             style: const TextStyle(color: Colors.white70, fontSize: 14),
           ),
           const Text(
@@ -125,7 +186,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoCard(UserProfile user) {
+  Widget _buildInfoCard() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
@@ -142,15 +203,24 @@ class ProfileScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _buildInfoRow(Icons.person, 'Name', user.name),
-          _buildInfoRow(Icons.phone, 'Mobile', user.mobile),
-          _buildInfoRow(Icons.email, 'Email', user.email),
-          _buildInfoRow(Icons.calendar_today, 'DOB', user.dob),
           _buildInfoRow(
-            Icons.location_on,
-            'Address',
-            user.address,
+            Icons.person,
+            'Name',
+            userData['name'] ?? 'NA',
+            isEditable: false,
+          ),
+          _buildInfoRow(
+            Icons.email,
+            'Email',
+            userData['email'] ?? 'NA',
+            isEditable: false,
+          ),
+          _buildInfoRow(
+            Icons.phone,
+            'Mobile',
+            userData['mobile'] ?? 'NA',
             hasDivider: false,
+            isEditable: true,
           ),
         ],
       ),
@@ -162,6 +232,7 @@ class ProfileScreen extends StatelessWidget {
     String label,
     String value, {
     bool hasDivider = true,
+    bool isEditable = true,
   }) {
     return Column(
       children: [
@@ -187,14 +258,43 @@ class ProfileScreen extends StatelessWidget {
               ],
             ),
             const Spacer(),
-            IconButton(
-              onPressed: () {},
-              icon: const Icon(Icons.edit, size: 18, color: Colors.grey),
-            ),
+            if (isEditable)
+              IconButton(
+                onPressed: () {},
+                icon: const Icon(Icons.edit, size: 18, color: Colors.grey),
+              ),
           ],
         ),
         if (hasDivider) const Divider(height: 16),
       ],
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Sign Out'),
+          content: const Text('Are you sure you want to sign out?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                context.read<AuthBloc>().add(AuthSignOutRequested());
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+              ),
+              child: const Text('Sign Out'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
