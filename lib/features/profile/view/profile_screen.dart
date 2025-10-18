@@ -19,6 +19,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, String> userData = {};
   bool isLoading = true;
+  final TextEditingController _mobileController = TextEditingController();
 
   @override
   void initState() {
@@ -26,6 +27,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadUserData();
     // Request premium status when screen loads
     context.read<PremiumBloc>().add(PremiumStatusRequested());
+  }
+
+  @override
+  void dispose() {
+    _mobileController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUserData() async {
@@ -299,7 +306,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const Spacer(),
             if (isEditable)
               IconButton(
-                onPressed: () {},
+                onPressed: () {
+                  if (label == 'Mobile') {
+                    _showEditMobileDialog(context);
+                  }
+                },
                 icon: const Icon(Icons.edit, size: 18, color: Colors.grey),
               ),
           ],
@@ -395,6 +406,112 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   backgroundColor: AppColors.primary,
                 ),
                 child: const Text('Upgrade Now'),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEditMobileDialog(BuildContext context) {
+    _mobileController.text = userData['mobile'] ?? '';
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.phone, color: AppColors.primary, size: 28),
+              const SizedBox(width: 12),
+              const Text(
+                'Edit Mobile Number',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _mobileController,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  labelText: 'Mobile Number',
+                  hintText: 'Enter your mobile number',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  prefixIcon: const Icon(Icons.phone),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your mobile number';
+                  }
+                  if (value.length < 10) {
+                    return 'Please enter a valid mobile number';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            BlocListener<AuthBloc, AuthState>(
+              listener: (context, state) {
+                if (state is AuthLoading) {
+                  // Show loading indicator
+                } else if (state is AuthAuthenticated) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Mobile number updated successfully!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                  // Reload user data to reflect changes
+                  _loadUserData();
+                } else if (state is AuthError) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Update failed: ${state.message}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              child: ElevatedButton(
+                onPressed: () {
+                  final newMobile = _mobileController.text.trim();
+                  if (newMobile.isNotEmpty && newMobile.length >= 10) {
+                    context.read<AuthBloc>().add(
+                      AuthProfileUpdateRequested(
+                        name: userData['name'] ?? '',
+                        mobile: newMobile,
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter a valid mobile number'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                ),
+                child: const Text('Update'),
               ),
             ),
           ],
