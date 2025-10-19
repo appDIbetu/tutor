@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'dart:math' as math;
 import '../../../core/constants/app_colors.dart';
 import '../../../core/premium/premium_bloc.dart';
 import '../../../core/helpers/premium_access_helper.dart';
@@ -15,6 +14,7 @@ Widget _buildList(
   BuildContext context,
   List<SubjectListResponse> subjects,
   bool userHasPremium,
+  String Function(int) formatDuration,
 ) {
   if (subjects.isEmpty) {
     return Center(
@@ -65,6 +65,7 @@ Widget _buildList(
             // Show question range selection dialog for all subjects
             _showQuestionRangeDialog(context, subject, userHasPremium);
           },
+          formatDuration: formatDuration,
         ),
       );
     },
@@ -388,6 +389,18 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
     context.requestPremiumStatus();
   }
 
+  String _formatDuration(int totalSeconds) {
+    final int hours = totalSeconds ~/ 3600;
+    final int minutes = (totalSeconds % 3600) ~/ 60;
+    final int seconds = totalSeconds % 60;
+
+    if (hours > 0) {
+      return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    } else {
+      return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -406,7 +419,12 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
           final userHasPremium = premiumState is PremiumActive;
 
           return widget.futureSubjects == null
-              ? _buildList(context, widget.subjects, userHasPremium)
+              ? _buildList(
+                  context,
+                  widget.subjects,
+                  userHasPremium,
+                  _formatDuration,
+                )
               : FutureBuilder<List<SubjectListResponse>>(
                   future: widget.futureSubjects,
                   builder: (context, snapshot) {
@@ -451,7 +469,12 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
                       );
                     }
                     final items = snapshot.data ?? const [];
-                    return _buildList(context, items, userHasPremium);
+                    return _buildList(
+                      context,
+                      items,
+                      userHasPremium,
+                      _formatDuration,
+                    );
                   },
                 );
         },
@@ -463,8 +486,13 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
 class _SubjectTile extends StatelessWidget {
   final SubjectListResponse subject;
   final VoidCallback? onAttempt;
+  final String Function(int) formatDuration;
 
-  const _SubjectTile({required this.subject, this.onAttempt});
+  const _SubjectTile({
+    required this.subject,
+    this.onAttempt,
+    required this.formatDuration,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -587,7 +615,9 @@ class _SubjectTile extends StatelessWidget {
                 const SizedBox(width: 16),
                 _StatItem(
                   icon: Icons.timer_outlined,
-                  label: '${subject.perQsnDuration} सेकेन्ड प्रति प्रश्न',
+                  label: formatDuration(
+                    subject.perQsnDuration * subject.numberOfQuestions,
+                  ),
                 ),
               ],
             ),

@@ -2,6 +2,9 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../models/exam_question_model.dart';
+import '../../../core/services/api_service.dart';
+import '../../../core/models/api_response_models.dart';
+import '../../../core/services/auth_service.dart';
 
 part 'exam_taking_event.dart';
 part 'exam_taking_state.dart';
@@ -20,11 +23,14 @@ class ExamTakingBloc extends Bloc<ExamTakingEvent, ExamTakingState> {
   void _onExamStarted(ExamStarted event, Emitter<ExamTakingState> emit) {
     emit(
       state.copyWith(
+        examId: event.examId,
         questions: event.questions,
         status: ExamStatus.inProgress,
         remainingTime: event.durationInSeconds,
         durationSeconds: event.durationInSeconds,
         totalQuestions: event.questions.length,
+        positiveMark: event.positiveMark,
+        negativeMark: event.negativeMark,
       ),
     );
     _timer?.cancel();
@@ -56,8 +62,13 @@ class ExamTakingBloc extends Bloc<ExamTakingEvent, ExamTakingState> {
     emit(state.copyWith(remainingTime: event.remainingTime));
   }
 
-  void _onExamSubmitted(ExamSubmitted event, Emitter<ExamTakingState> emit) {
+  void _onExamSubmitted(
+    ExamSubmitted event,
+    Emitter<ExamTakingState> emit,
+  ) async {
     _timer?.cancel();
+
+    // Calculate results locally first
     int correctAnswers = 0;
     int wrongAnswers = 0;
     for (int i = 0; i < state.questions.length; i++) {
@@ -73,12 +84,13 @@ class ExamTakingBloc extends Bloc<ExamTakingEvent, ExamTakingState> {
         state.questions.length - (correctAnswers + wrongAnswers);
     final int timeTaken = state.durationSeconds - state.remainingTime;
 
-    // Marking scheme (can be made dynamic later)
-    const double positiveMark = 1.0;
-    const double negativeMark = 0.25;
+    // Marking scheme from exam API
+    final double positiveMark = state.positiveMark;
+    final double negativeMark = state.negativeMark;
     final double marks =
         (correctAnswers * positiveMark) - (wrongAnswers * negativeMark);
 
+    // Update state with local results
     emit(
       state.copyWith(
         status: ExamStatus.completed,
@@ -92,6 +104,52 @@ class ExamTakingBloc extends Bloc<ExamTakingEvent, ExamTakingState> {
         finalMarks: marks,
       ),
     );
+
+    // Submit to API if examId is available
+    if (state.examId != null) {
+      try {
+        // Get current user ID
+        final userData = await AuthService.getSavedFirebaseUserData();
+        if (userData != null) {
+          // Create exam result for API submission
+          final examResult = ExamResultCreate(
+            studentId: userData.uid,
+            score: marks,
+            positiveMark: positiveMark,
+            negativeMark: negativeMark,
+            totalQuestions: state.questions.length,
+            attemptedQuestions: correctAnswers + wrongAnswers,
+            correctAnswers: correctAnswers,
+            wrongAnswers: wrongAnswers,
+            skippedQuestions: unattempted,
+            avgSpeed: timeTaken > 0
+                ? (correctAnswers + wrongAnswers) / (timeTaken / 60.0)
+                : 0.0,
+            selectedIndexes: state.selectedAnswers.values.toList(),
+            timeTaken: timeTaken,
+            isCompleted: true,
+          );
+
+          // Submit to API
+          final result = await ApiService.submitExamResult(
+            state.examId!,
+            examResult,
+          );
+          if (result != null) {
+            print('Exam result submitted successfully to API');
+          } else {
+            print('Failed to submit exam result to API');
+          }
+        } else {
+          print('No user data available for exam submission');
+        }
+      } catch (e) {
+        print('Error submitting exam result to API: $e');
+        // Don't fail the exam completion if API submission fails
+      }
+    } else {
+      print('No exam ID available for API submission');
+    }
   }
 
   @override

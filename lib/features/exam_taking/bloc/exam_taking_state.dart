@@ -4,6 +4,7 @@ enum ExamStatus { initial, inProgress, completed }
 
 class ExamTakingState extends Equatable {
   final ExamStatus status;
+  final String? examId; // Add exam ID for API submission
   final List<ExamQuestion> questions;
   final int currentQuestionIndex;
   final Map<int, int>
@@ -24,6 +25,7 @@ class ExamTakingState extends Equatable {
 
   const ExamTakingState({
     this.status = ExamStatus.initial,
+    this.examId,
     this.questions = const [],
     this.currentQuestionIndex = 0,
     this.selectedAnswers = const {},
@@ -53,6 +55,7 @@ class ExamTakingState extends Equatable {
 
   ExamTakingState copyWith({
     ExamStatus? status,
+    String? examId,
     List<ExamQuestion>? questions,
     int? currentQuestionIndex,
     Map<int, int>? selectedAnswers,
@@ -70,6 +73,7 @@ class ExamTakingState extends Equatable {
   }) {
     return ExamTakingState(
       status: status ?? this.status,
+      examId: examId ?? this.examId,
       questions: questions ?? this.questions,
       currentQuestionIndex: currentQuestionIndex ?? this.currentQuestionIndex,
       selectedAnswers: selectedAnswers ?? this.selectedAnswers,
@@ -90,6 +94,7 @@ class ExamTakingState extends Equatable {
   @override
   List<Object?> get props => [
     status,
+    examId,
     questions,
     currentQuestionIndex,
     selectedAnswers,

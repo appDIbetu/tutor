@@ -460,7 +460,75 @@ class Question extends Equatable {
   ];
 }
 
-// Exam Result model
+// Exam Result Create model (for submitting exam results)
+class ExamResultCreate extends Equatable {
+  final String studentId;
+  final double score;
+  final double positiveMark;
+  final double negativeMark;
+  final int totalQuestions;
+  final int attemptedQuestions;
+  final int correctAnswers;
+  final int wrongAnswers;
+  final int skippedQuestions;
+  final double avgSpeed;
+  final List<int> selectedIndexes;
+  final int timeTaken;
+  final bool isCompleted;
+
+  const ExamResultCreate({
+    required this.studentId,
+    required this.score,
+    required this.positiveMark,
+    required this.negativeMark,
+    required this.totalQuestions,
+    required this.attemptedQuestions,
+    required this.correctAnswers,
+    required this.wrongAnswers,
+    required this.skippedQuestions,
+    required this.avgSpeed,
+    required this.selectedIndexes,
+    required this.timeTaken,
+    this.isCompleted = true,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'student_id': studentId,
+      'score': score,
+      'positive_mark': positiveMark,
+      'negative_mark': negativeMark,
+      'total_questions': totalQuestions,
+      'attempted_questions': attemptedQuestions,
+      'correct_answers': correctAnswers,
+      'wrong_answers': wrongAnswers,
+      'skipped_questions': skippedQuestions,
+      'avg_speed': avgSpeed,
+      'selected_indexes': selectedIndexes,
+      'time_taken': timeTaken,
+      'is_completed': isCompleted,
+    };
+  }
+
+  @override
+  List<Object?> get props => [
+    studentId,
+    score,
+    positiveMark,
+    negativeMark,
+    totalQuestions,
+    attemptedQuestions,
+    correctAnswers,
+    wrongAnswers,
+    skippedQuestions,
+    avgSpeed,
+    selectedIndexes,
+    timeTaken,
+    isCompleted,
+  ];
+}
+
+// Exam Result Response model (for receiving exam results)
 class ExamResultResponse extends Equatable {
   final String studentId;
   final double score;

@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/network/exam_service.dart';
+import '../../../core/services/api_service.dart';
+import '../../../core/models/api_response_models.dart';
 import '../bloc/exam_taking_bloc.dart';
-import '../models/exam_attempt_model.dart';
+import '../models/exam_question_model.dart';
 import 'exam_result_screen.dart';
 import '../widgets/question_options.dart';
 
@@ -22,12 +23,8 @@ class ExamTakingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<ExamDetails>(
-      future: ExamService.fetchExamDetails(
-        examId,
-        questionStartIndex: questionStartIndex,
-        questionEndIndex: questionEndIndex,
-      ),
+    return FutureBuilder<ExamResponse?>(
+      future: ApiService.getExam(examId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -35,7 +32,7 @@ class ExamTakingScreen extends StatelessWidget {
           );
         }
 
-        if (snapshot.hasError) {
+        if (snapshot.hasError || snapshot.data == null) {
           return Scaffold(
             body: Center(
               child: Column(
@@ -43,7 +40,7 @@ class ExamTakingScreen extends StatelessWidget {
                 children: [
                   const Icon(Icons.error_outline, size: 64, color: Colors.red),
                   const SizedBox(height: 16),
-                  Text('Error: ${snapshot.error}'),
+                  Text('Error: ${snapshot.error ?? "Failed to load exam"}'),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(),
@@ -57,121 +54,110 @@ class ExamTakingScreen extends StatelessWidget {
 
         final examDetails = snapshot.data!;
 
-        // Check for existing attempt
-        return FutureBuilder<ExamAttempt?>(
-          future: ExamService.checkExistingAttempt(
-            examId,
-            'student_123',
-          ), // Replace with actual student ID
-          builder: (context, attemptSnapshot) {
-            if (attemptSnapshot.connectionState == ConnectionState.waiting) {
+        // Convert API questions to ExamQuestion format
+        final examQuestions = examDetails.questions
+            .map(
+              (q) => ExamQuestion(
+                id: q.id,
+                questionText: q.questionText,
+                options: q.options,
+                correctAnswerIndex: q.correctAnswerIndex,
+                explanation: q.explanation,
+              ),
+            )
+            .toList();
+
+        // Apply question range filtering if specified
+        List<ExamQuestion> filteredQuestions = examQuestions;
+        if (questionStartIndex != null && questionEndIndex != null) {
+          final startIndex = (questionStartIndex! - 1).clamp(
+            0,
+            examQuestions.length - 1,
+          );
+          final endIndex = (questionEndIndex! - 1).clamp(
+            startIndex,
+            examQuestions.length - 1,
+          );
+          filteredQuestions = examQuestions.sublist(startIndex, endIndex + 1);
+        }
+
+        // Start new exam
+        return BlocProvider(
+          create: (context) => ExamTakingBloc()
+            ..add(
+              ExamStarted(
+                examId: examDetails.examId,
+                durationInSeconds:
+                    examDetails.perQsnDuration * examDetails.numberOfQuestions,
+                questions: filteredQuestions,
+                positiveMark: examDetails.posMarking,
+                negativeMark: examDetails.negMarking,
+              ),
+            ),
+          child: BlocBuilder<ExamTakingBloc, ExamTakingState>(
+            builder: (context, state) {
+              if (state.status == ExamStatus.completed) {
+                return ExamResultScreen(
+                  resultState: state,
+                  examTitle: examDetails.name,
+                  examDetails: examDetails,
+                  showRetakeButton: true,
+                  onRetake: () {
+                    // Reset the exam state and restart
+                    context.read<ExamTakingBloc>().add(
+                      ExamStarted(
+                        examId: examDetails.examId,
+                        durationInSeconds:
+                            examDetails.perQsnDuration *
+                            examDetails.numberOfQuestions,
+                        questions: examDetails.questions
+                            .map(
+                              (q) => ExamQuestion(
+                                id: q.id,
+                                questionText: q.questionText,
+                                options: q.options,
+                                correctAnswerIndex: q.correctAnswerIndex,
+                                explanation: q.explanation,
+                              ),
+                            )
+                            .toList(),
+                        positiveMark: examDetails.posMarking,
+                        negativeMark: examDetails.negMarking,
+                      ),
+                    );
+                  },
+                );
+              }
+
+              if (state.status == ExamStatus.inProgress &&
+                  state.questions.isNotEmpty) {
+                return Scaffold(
+                  appBar: AppBar(
+                    backgroundColor: AppColors.primary,
+                    elevation: 0,
+                    iconTheme: const IconThemeData(color: Colors.white),
+                    title: Text(
+                      examDetails.name,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  body: const _ScrollableQuestionsView(),
+                );
+              }
+
               return const Scaffold(
                 body: Center(child: CircularProgressIndicator()),
               );
-            }
-
-            // If user has already attempted this exam, show result screen with detailed data
-            if (attemptSnapshot.hasData && attemptSnapshot.data != null) {
-              return FutureBuilder<Map<String, dynamic>>(
-                future: ExamService.getExamAttemptDetails(examId),
-                builder: (context, detailsSnapshot) {
-                  if (detailsSnapshot.connectionState ==
-                      ConnectionState.waiting) {
-                    return const Scaffold(
-                      body: Center(child: CircularProgressIndicator()),
-                    );
-                  }
-
-                  if (detailsSnapshot.hasError) {
-                    return Scaffold(
-                      body: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.error_outline,
-                              size: 64,
-                              color: Colors.red,
-                            ),
-                            const SizedBox(height: 16),
-                            Text('Error: ${detailsSnapshot.error}'),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: () => Navigator.of(context).pop(),
-                              child: const Text('Go Back'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-
-                  final details = detailsSnapshot.data!;
-                  final attempt = ExamAttempt.fromJson(details['attempt']);
-                  final examDetailsData =
-                      details['examDetails'] as Map<String, dynamic>;
-                  final questionsList = (details['questions'] as List)
-                      .map((q) => ExamQuestionJson.fromJson(q))
-                      .toList();
-
-                  return ExamResultScreen(
-                    resultState: _convertAttemptToState(attempt),
-                    examTitle: attempt.examTitle,
-                    candidateName: attempt.studentName,
-                    candidateEmail: attempt.studentEmail,
-                    showRetakeButton: true,
-                    onRetake: () => _startNewAttempt(context, examDetails),
-                    examDetails: examDetailsData,
-                    questions: questionsList,
-                  );
-                },
-              );
-            }
-
-            // No existing attempt, start new exam
-            return BlocProvider(
-              create: (context) => ExamTakingBloc()
-                ..add(
-                  ExamStarted(
-                    durationInSeconds: examDetails.durationMinutes * 60,
-                    questions: examDetails.questions,
-                  ),
-                ),
-              child: BlocBuilder<ExamTakingBloc, ExamTakingState>(
-                builder: (context, state) {
-                  if (state.status == ExamStatus.completed) {
-                    return ExamResultScreen(resultState: state);
-                  }
-
-                  if (state.status == ExamStatus.inProgress &&
-                      state.questions.isNotEmpty) {
-                    return Scaffold(
-                      appBar: AppBar(
-                        backgroundColor: AppColors.primary,
-                        elevation: 0,
-                        iconTheme: const IconThemeData(color: Colors.white),
-                        title: Text(
-                          examDetails.title,
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                      ),
-                      body: const _ScrollableQuestionsView(),
-                    );
-                  }
-
-                  return const Scaffold(
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                },
-              ),
-            );
-          },
+            },
+          ),
         );
       },
     );
   }
 
   // Convert ExamAttempt to ExamTakingState for result screen
+  // Unused method - removed as we now use API directly
+  /*
   ExamTakingState _convertAttemptToState(ExamAttempt attempt) {
     return ExamTakingState(
       status: ExamStatus.completed,
@@ -188,50 +174,7 @@ class ExamTakingScreen extends StatelessWidget {
       totalQuestions: attempt.totalQuestions,
     );
   }
-
-  // Start new attempt (retake exam)
-  void _startNewAttempt(BuildContext context, ExamDetails examDetails) {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => BlocProvider(
-          create: (context) => ExamTakingBloc()
-            ..add(
-              ExamStarted(
-                durationInSeconds: examDetails.durationMinutes * 60,
-                questions: examDetails.questions,
-              ),
-            ),
-          child: BlocBuilder<ExamTakingBloc, ExamTakingState>(
-            builder: (context, state) {
-              if (state.status == ExamStatus.completed) {
-                return ExamResultScreen(resultState: state);
-              }
-
-              if (state.status == ExamStatus.inProgress &&
-                  state.questions.isNotEmpty) {
-                return Scaffold(
-                  appBar: AppBar(
-                    backgroundColor: AppColors.primary,
-                    elevation: 0,
-                    iconTheme: const IconThemeData(color: Colors.white),
-                    title: Text(
-                      examDetails.title,
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ),
-                  body: const _ScrollableQuestionsView(),
-                );
-              }
-
-              return const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
+  */
 }
 
 class _ScrollableQuestionsView extends StatefulWidget {
@@ -510,10 +453,12 @@ class _ScrollableQuestionsViewState extends State<_ScrollableQuestionsView> {
       ),
       builder: (_) {
         return SafeArea(
-          child: Padding(
+          child: Container(
+            height:
+                MediaQuery.of(context).size.height *
+                0.7, // Limit height to 70% of screen
             padding: const EdgeInsets.all(16.0),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
@@ -539,48 +484,49 @@ class _ScrollableQuestionsViewState extends State<_ScrollableQuestionsView> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 5,
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                    childAspectRatio: 1,
-                  ),
-                  itemCount: total,
-                  itemBuilder: (context, index) {
-                    final isAttempted = state.selectedAnswers.containsKey(
-                      index,
-                    );
-                    return InkWell(
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        // --- USE THE ITEMSCROLLCONTROLLER ---
-                        _itemScrollController.scrollTo(
-                          index: index,
-                          duration: const Duration(milliseconds: 400),
-                          curve: Curves.easeInOutCubic,
-                        );
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: isAttempted
-                              ? Colors.green
-                              : Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(8),
+                Expanded(
+                  child: GridView.builder(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 5,
+                          mainAxisSpacing: 8,
+                          crossAxisSpacing: 8,
+                          childAspectRatio: 1,
                         ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          '${index + 1}',
-                          style: TextStyle(
-                            color: isAttempted ? Colors.white : Colors.black,
-                            fontWeight: FontWeight.bold,
+                    itemCount: total,
+                    itemBuilder: (context, index) {
+                      final isAttempted = state.selectedAnswers.containsKey(
+                        index,
+                      );
+                      return InkWell(
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          // --- USE THE ITEMSCROLLCONTROLLER ---
+                          _itemScrollController.scrollTo(
+                            index: index,
+                            duration: const Duration(milliseconds: 400),
+                            curve: Curves.easeInOutCubic,
+                          );
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: isAttempted
+                                ? Colors.green
+                                : Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            '${index + 1}',
+                            style: TextStyle(
+                              color: isAttempted ? Colors.white : Colors.black,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
               ],
             ),

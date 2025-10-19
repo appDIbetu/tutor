@@ -7,6 +7,7 @@ import '../../../core/helpers/premium_access_helper.dart';
 import '../../exam_taking/view/exam_taking_screen.dart';
 import '../../exam_taking/view/exam_result_screen.dart';
 import '../../exam_taking/bloc/exam_taking_bloc.dart';
+import '../../exam_taking/models/exam_question_model.dart';
 
 class AvailableExamsScreen extends StatefulWidget {
   const AvailableExamsScreen({super.key});
@@ -364,7 +365,7 @@ class _AvailableExamsScreenState extends State<AvailableExamsScreen> {
               children: [
                 _buildDetailColumn(
                   'अवधि',
-                  '${exam.perQsnDuration} सेकेन्ड प्रति प्रश्न',
+                  _formatDuration(exam.perQsnDuration * exam.numberOfQuestions),
                 ),
                 _buildDetailColumn('प्रश्नहरू', '${exam.numberOfQuestions}'),
               ],
@@ -446,50 +447,97 @@ class _AvailableExamsScreenState extends State<AvailableExamsScreen> {
     );
   }
 
+  String _formatDuration(int totalSeconds) {
+    final int hours = totalSeconds ~/ 3600;
+    final int minutes = (totalSeconds % 3600) ~/ 60;
+    final int seconds = totalSeconds % 60;
+
+    if (hours > 0) {
+      return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    } else {
+      return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    }
+  }
+
   Future<void> _navigateToResultScreen(
     BuildContext context,
     ExamListResponse exam,
   ) async {
     try {
-      // Fetch exam details with questions
-      final examDetails = await ApiService.getExam(exam.examId);
-
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ExamResultScreen(
-            resultState: _createDummyResultState(exam),
-            examTitle: exam.name,
-            candidateName: 'User', // TODO: Get from user data
-            candidateEmail: 'user@example.com', // TODO: Get from user data
-            showRetakeButton: true,
-            onRetake: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => ExamTakingScreen(examId: exam.examId),
-                ),
-              );
-            },
-            examDetails: {
-              'id': examDetails?.examId ?? exam.examId,
-              'title': examDetails?.name ?? exam.name,
-              'subject': 'General', // TODO: Add subject to API model
-              'durationMinutes':
-                  examDetails?.perQsnDuration ?? exam.perQsnDuration,
-              'totalQuestions':
-                  examDetails?.numberOfQuestions ?? exam.numberOfQuestions,
-              'passMark': 50, // TODO: Add passMark to API model
-              'price': examDetails?.price ?? exam.price,
-            },
-            questions: [], // TODO: Add questions to API model
-          ),
-        ),
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
       );
+
+      // Fetch exam details with questions and actual result
+      final examDetails = await ApiService.getExam(exam.examId);
+      final examResult = await ApiService.getMyExamResult(exam.examId);
+
+      // Close loading dialog
+      if (context.mounted) Navigator.of(context).pop();
+
+      if (examDetails == null) {
+        throw Exception('Failed to load exam details');
+      }
+
+      // Convert API questions to ExamQuestion models
+      final questions = examDetails.questions
+          .map(
+            (q) => ExamQuestion(
+              id: q.id,
+              questionText: q.questionText,
+              options: q.options,
+              correctAnswerIndex: q.correctAnswerIndex,
+              explanation: q.explanation,
+            ),
+          )
+          .toList();
+
+      // Convert selected_indexes to selectedAnswers map
+      final selectedAnswers = <int, int>{};
+      if (examResult != null && examResult.selectedIndexes.isNotEmpty) {
+        for (int i = 0; i < examResult.selectedIndexes.length; i++) {
+          selectedAnswers[i] = examResult.selectedIndexes[i];
+        }
+      }
+
+      if (context.mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ExamResultScreen(
+              resultState: _createRealResultState(
+                exam,
+                examResult,
+                selectedAnswers,
+              ),
+              examTitle: exam.name,
+              showRetakeButton: true,
+              onRetake: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ExamTakingScreen(examId: exam.examId),
+                  ),
+                );
+              },
+              examDetails: examDetails,
+              questions: questions,
+            ),
+          ),
+        );
+      }
     } catch (e) {
+      // Close loading dialog if still open
+      if (context.mounted) Navigator.of(context).pop();
+
       // Show error snackbar
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error loading exam details: $e')));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading exam result: $e')),
+        );
+      }
     }
   }
 
@@ -513,9 +561,40 @@ class _AvailableExamsScreenState extends State<AvailableExamsScreen> {
     }
   }
 
+  ExamTakingState _createRealResultState(
+    ExamListResponse exam,
+    ExamResultResponse? examResult,
+    Map<int, int> selectedAnswers,
+  ) {
+    if (examResult == null) {
+      // Fallback to dummy state if no result found
+      return _createDummyResultState(exam);
+    }
+
+    return ExamTakingState(
+      status: ExamStatus.completed,
+      examId: exam.examId,
+      questions: [], // Will be populated by the result screen
+      currentQuestionIndex: 0,
+      selectedAnswers: selectedAnswers,
+      remainingTime: 0,
+      score: examResult.correctAnswers,
+      totalQuestions: examResult.totalQuestions,
+      correctCount: examResult.correctAnswers,
+      wrongCount: examResult.wrongAnswers,
+      unattemptedCount: examResult.skippedQuestions,
+      durationSeconds: exam.perQsnDuration * exam.numberOfQuestions,
+      timeTakenSeconds: examResult.timeTaken,
+      positiveMark: examResult.positiveMark,
+      negativeMark: examResult.negativeMark,
+      finalMarks: examResult.score,
+    );
+  }
+
   ExamTakingState _createDummyResultState(ExamListResponse exam) {
     return ExamTakingState(
       status: ExamStatus.completed,
+      examId: exam.examId,
       questions: [],
       currentQuestionIndex: 0,
       selectedAnswers: {},
@@ -527,8 +606,8 @@ class _AvailableExamsScreenState extends State<AvailableExamsScreen> {
       unattemptedCount: exam.numberOfQuestions,
       durationSeconds: exam.perQsnDuration * exam.numberOfQuestions,
       timeTakenSeconds: 1800,
-      positiveMark: 1.0,
-      negativeMark: 0.25,
+      positiveMark: exam.posMarking, // Use API value
+      negativeMark: exam.negMarking, // Use API value instead of hardcoded 0.25
       finalMarks: 0.0,
     );
   }

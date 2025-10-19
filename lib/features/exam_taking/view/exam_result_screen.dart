@@ -5,33 +5,90 @@ import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart' as pwc;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:screenshot/screenshot.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/models/api_response_models.dart';
 import '../bloc/exam_taking_bloc.dart';
 import '../models/exam_question_model.dart';
 
-class ExamResultScreen extends StatelessWidget {
+class ExamResultScreen extends StatefulWidget {
   final ExamTakingState resultState;
   final String examTitle;
-  final String candidateName;
-  final String candidateEmail;
   final bool showRetakeButton;
   final VoidCallback? onRetake;
-  final Map<String, dynamic>? examDetails;
+  final ExamResponse? examDetails;
   final List<ExamQuestion>? questions;
 
-  ExamResultScreen({
+  const ExamResultScreen({
     super.key,
     required this.resultState,
     this.examTitle = 'Mollusca',
-    this.candidateName = 'Dipak Shah',
-    this.candidateEmail = 'appdibetu@gmail.com',
     this.showRetakeButton = false,
     this.onRetake,
     this.examDetails,
     this.questions,
   });
 
+  @override
+  State<ExamResultScreen> createState() => _ExamResultScreenState();
+}
+
+class _ExamResultScreenState extends State<ExamResultScreen> {
   // This controller is used programmatically, not in the widget tree.
   final ScreenshotController _screenshotController = ScreenshotController();
+
+  String candidateName = 'Loading...';
+  String candidateEmail = 'Loading...';
+  String examDate = 'Loading...';
+  double positiveMark = 1.0;
+  double negativeMark = 0.25;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+    _loadExamData();
+  }
+
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      candidateName = prefs.getString('user_name') ?? 'User';
+      candidateEmail = prefs.getString('user_email') ?? 'user@example.com';
+    });
+  }
+
+  Future<void> _loadExamData() async {
+    // Get exam date and marking from exam API response
+    setState(() {
+      // Use exam date from API if available, otherwise use current date
+      if (widget.examDetails != null) {
+        try {
+          // Check if examDetails has createdAt field (from API)
+          if (widget.examDetails!.createdAt != null) {
+            examDate = DateFormat(
+              'MMM dd, yyyy',
+            ).format(widget.examDetails!.createdAt!);
+          } else {
+            examDate = DateFormat('MMM dd, yyyy').format(DateTime.now());
+          }
+
+          // Get marking from exam API response
+          positiveMark = widget.examDetails!.posMarking;
+          negativeMark = widget.examDetails!.negMarking;
+        } catch (e) {
+          // Fallback to current date and default marking
+          examDate = DateFormat('MMM dd, yyyy').format(DateTime.now());
+          positiveMark = 1.0;
+          negativeMark = 0.25;
+        }
+      } else {
+        // Fallback if no exam details available
+        examDate = DateFormat('MMM dd, yyyy').format(DateTime.now());
+        positiveMark = 1.0;
+        negativeMark = 0.25;
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,11 +97,11 @@ class ExamResultScreen extends StatelessWidget {
         backgroundColor: const Color(0xFFF8D7DA),
         elevation: 0,
         actions: [
-          if (showRetakeButton && onRetake != null)
+          if (widget.showRetakeButton && widget.onRetake != null)
             Padding(
               padding: const EdgeInsets.only(right: 8.0),
               child: ElevatedButton.icon(
-                onPressed: onRetake,
+                onPressed: widget.onRetake,
                 icon: const Icon(Icons.refresh, size: 18),
                 label: const Text('Retake'),
                 style: ElevatedButton.styleFrom(
@@ -112,22 +169,24 @@ class ExamResultScreen extends StatelessWidget {
           ),
         ],
       ),
-      // The body shown on screen remains a SingleChildScrollView
-      body: SingleChildScrollView(child: _printableBody(context)),
+      // The body shown on screen remains a SingleChildScrollView with smooth scrolling
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: _printableBody(context),
+      ),
     );
   }
 
   // --- ALL YOUR UI-BUILDING METHODS ARE PRESERVED BELOW ---
 
   String _averageSpeedLabel() {
-    if (resultState.totalQuestions == 0 || resultState.timeTakenSeconds <= 0) {
+    if (widget.resultState.totalQuestions == 0 ||
+        widget.resultState.timeTakenSeconds <= 0) {
       return '-';
     }
-    final attemptedCount =
-        resultState.totalQuestions - resultState.unattemptedCount;
-    if (attemptedCount == 0) return '0s/q';
-    final secondsPerQuestion = resultState.timeTakenSeconds / attemptedCount;
-    return '${secondsPerQuestion.toStringAsFixed(0)}s/q';
+    final secondsPerQuestion =
+        widget.resultState.timeTakenSeconds / widget.resultState.totalQuestions;
+    return '${secondsPerQuestion.toStringAsFixed(1)}s/q';
   }
 
   Widget _buildHeader() {
@@ -138,7 +197,7 @@ class ExamResultScreen extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            examTitle,
+            widget.examTitle,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
@@ -197,9 +256,9 @@ class ExamResultScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              _buildStatCard('positive marking', '${resultState.positiveMark}'),
+              _buildStatCard('positive marking', '$positiveMark'),
               const SizedBox(width: 16),
-              _buildStatCard('negative marking', '${resultState.negativeMark}'),
+              _buildStatCard('negative marking', '$negativeMark'),
             ],
           ),
           const SizedBox(height: 16),
@@ -207,12 +266,15 @@ class ExamResultScreen extends StatelessWidget {
             children: [
               _buildStatCard(
                 'score',
-                resultState.finalMarks.toStringAsFixed(2),
+                widget.resultState.finalMarks.toStringAsFixed(2),
               ),
               const SizedBox(width: 16),
               _buildStatCard('average speed', _averageSpeedLabel()),
             ],
           ),
+          const SizedBox(height: 16),
+          // Full-width card for total time taken
+          _buildTimeCard(),
         ],
       ),
     );
@@ -246,10 +308,54 @@ class ExamResultScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildTimeCard() {
+    final totalSeconds = widget.resultState.timeTakenSeconds;
+    final hours = totalSeconds ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+    final seconds = totalSeconds % 60;
+
+    String timeString;
+    if (hours > 0) {
+      timeString = '${hours}h ${minutes}m ${seconds}s';
+    } else if (minutes > 0) {
+      timeString = '${minutes}m ${seconds}s';
+    } else {
+      timeString = '${seconds}s';
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            spreadRadius: 2,
+            blurRadius: 5,
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            timeString,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const Text(
+            'Total Time Taken',
+            style: TextStyle(color: Colors.black54),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDonutChart() {
-    final correct = resultState.correctCount.toDouble();
-    final wrong = resultState.wrongCount.toDouble();
-    final unattempted = resultState.unattemptedCount.toDouble();
+    final correct = widget.resultState.correctCount.toDouble();
+    final wrong = widget.resultState.wrongCount.toDouble();
+    final unattempted = widget.resultState.unattemptedCount.toDouble();
 
     return Container(
       height: 150,
@@ -284,7 +390,7 @@ class ExamResultScreen extends StatelessWidget {
             ),
           ),
           Text(
-            resultState.finalMarks.toStringAsFixed(2),
+            widget.resultState.finalMarks.toStringAsFixed(2),
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
         ],
@@ -297,12 +403,9 @@ class ExamResultScreen extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Row(
         children: [
-          _buildStatCard('exam date', '2022/08/17'),
+          _buildStatCard('exam date', examDate),
           const SizedBox(width: 16),
-          _buildStatCard(
-            'attempted date',
-            DateFormat('d/M/y').format(DateTime.now()),
-          ),
+          _buildStatCard('attempted date', examDate),
         ],
       ),
     );
@@ -345,98 +448,169 @@ class ExamResultScreen extends StatelessWidget {
             'Answer Sheet',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 8),
-          ...List.generate((questions ?? resultState.questions).length, (
-            index,
-          ) {
-            final question = (questions ?? resultState.questions)[index];
-            final selectedAnswerIndex = resultState.selectedAnswers[index];
-            final isCorrect =
-                selectedAnswerIndex == question.correctAnswerIndex;
+          const SizedBox(height: 16),
+          // Simple Column with all questions - no nested scrolling
+          ...List.generate(
+            (widget.questions ?? widget.resultState.questions).length,
+            (index) {
+              final questionsList =
+                  widget.questions ?? widget.resultState.questions;
+              final question = questionsList[index];
+              final selectedAnswerIndex =
+                  widget.resultState.selectedAnswers[index];
 
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    color: _badgeColor(isCorrect, selectedAnswerIndex != null),
-                    child: Text(
-                      'Q.no.${index + 1}',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Card(
-                    elevation: 1,
-                    margin: EdgeInsets.zero,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Question number badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          ...List.generate(question.options.length, (optIndex) {
-                            final optionText = question.options[optIndex];
-                            Color? tileColor;
-
-                            if (optIndex == question.correctAnswerIndex) {
-                              tileColor = Colors.green.withValues(alpha: 0.15);
-                            }
-                            if (selectedAnswerIndex != null &&
-                                selectedAnswerIndex == optIndex &&
-                                !isCorrect) {
-                              tileColor = Colors.red.withValues(alpha: 0.15);
-                            }
-
-                            return Container(
-                              color: tileColor,
-                              width: double.infinity,
-                              margin: const EdgeInsets.symmetric(vertical: 2),
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 8,
-                                horizontal: 12,
-                              ),
-                              child: Text(optionText),
-                            );
-                          }),
-                          const SizedBox(height: 12),
+                          Icon(
+                            Icons.help_outline,
+                            size: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                          const SizedBox(width: 3),
                           Text(
-                            question.questionText,
-                            style: const TextStyle(
-                              fontSize: 16,
+                            'Q.no.${index + 1}',
+                            style: TextStyle(
                               fontWeight: FontWeight.w500,
+                              fontSize: 10,
+                              color: Colors.grey.shade600,
                             ),
                           ),
-                          // This part for 'explanation' will work if your model has it
-                          if (question.explanation != null &&
-                              question.explanation!.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Explanation',
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(question.explanation!),
-                          ],
                         ],
                       ),
                     ),
-                  ),
-                ],
-              ),
-            );
-          }),
+                    const SizedBox(height: 12),
+
+                    // Question Card (improved but simpler)
+                    Card(
+                      elevation: 1,
+                      margin: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Question text at the top
+                            Text(
+                              question.questionText,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            // Options below the question (simplified and cleaner)
+                            ...List.generate(question.options.length, (
+                              optIndex,
+                            ) {
+                              final optionText = question.options[optIndex];
+                              final isSelected =
+                                  selectedAnswerIndex == optIndex;
+                              final isCorrectAnswer =
+                                  optIndex == question.correctAnswerIndex;
+
+                              Color? tileColor;
+                              Color? textColor;
+                              IconData? icon;
+
+                              if (isCorrectAnswer) {
+                                tileColor = Colors.green.withValues(
+                                  alpha: 0.15,
+                                );
+                                textColor = Colors.green.shade800;
+                                icon = Icons.check_circle;
+                              } else if (isSelected && !isCorrectAnswer) {
+                                tileColor = Colors.red.withValues(alpha: 0.15);
+                                textColor = Colors.red.shade800;
+                                icon = Icons.cancel;
+                              } else {
+                                tileColor = Colors.grey.withValues(alpha: 0.1);
+                                textColor = Colors.black87;
+                                icon = null;
+                              }
+
+                              return Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.symmetric(vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                  horizontal: 16,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: tileColor,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isCorrectAnswer
+                                        ? Colors.green.shade300
+                                        : isSelected
+                                        ? Colors.red.shade300
+                                        : Colors.grey.shade300,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    if (icon != null) ...[
+                                      Icon(icon, size: 20, color: textColor),
+                                      const SizedBox(width: 12),
+                                    ],
+                                    Expanded(
+                                      child: Text(
+                                        optionText,
+                                        style: TextStyle(
+                                          color: textColor,
+                                          fontWeight:
+                                              isSelected || isCorrectAnswer
+                                              ? FontWeight.w600
+                                              : FontWeight.normal,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                            // This part for 'explanation' will work if your model has it
+                            if (question.explanation != null &&
+                                question.explanation!.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Explanation',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(question.explanation!),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         ],
       ),
     );
-  }
-
-  Color _badgeColor(bool isCorrect, bool attempted) {
-    if (!attempted) return Colors.grey.shade300;
-    return isCorrect ? Colors.green.shade200 : Colors.red.shade200;
   }
 }

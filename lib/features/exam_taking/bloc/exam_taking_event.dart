@@ -9,9 +9,27 @@ abstract class ExamTakingEvent extends Equatable {
 
 // Event to start the exam
 class ExamStarted extends ExamTakingEvent {
+  final String examId;
   final List<ExamQuestion> questions;
   final int durationInSeconds;
-  const ExamStarted({required this.questions, required this.durationInSeconds});
+  final double positiveMark;
+  final double negativeMark;
+  const ExamStarted({
+    required this.examId,
+    required this.questions,
+    required this.durationInSeconds,
+    required this.positiveMark,
+    required this.negativeMark,
+  });
+
+  @override
+  List<Object?> get props => [
+    examId,
+    questions,
+    durationInSeconds,
+    positiveMark,
+    negativeMark,
+  ];
 }
 
 // Event when the user selects an answer for a SPECIFIC question

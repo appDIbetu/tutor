@@ -181,10 +181,120 @@ class ApiService {
     return response?['notes']?.cast<Map<String, dynamic>>();
   }
 
-  static Future<Map<String, dynamic>?> submitExamResult(
-    Map<String, dynamic> result,
+  // Submit exam result to the proper API endpoint
+  static Future<ExamResultResponse?> submitExamResult(
+    String examId,
+    ExamResultCreate result,
   ) async {
-    return await post('/exam-results', result);
+    try {
+      final headers = await _getHeaders();
+      print('Submitting exam result for exam: $examId');
+      print('Result data: ${result.toJson()}');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/v1/education/exams/$examId/submit'),
+        headers: headers,
+        body: json.encode(result.toJson()),
+      );
+
+      print('Exam submission response status: ${response.statusCode}');
+      print('Exam submission response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final result = json.decode(response.body);
+        return ExamResultResponse.fromJson(result);
+      } else {
+        print(
+          'Exam submission failed: ${response.statusCode} - ${response.body}',
+        );
+        return null;
+      }
+    } catch (e) {
+      print('Exam submission error: $e');
+      return null;
+    }
+  }
+
+  // Get my exam result for a specific exam
+  static Future<ExamResultResponse?> getMyExamResult(String examId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/v1/education/exams/$examId/my-result'),
+        headers: headers,
+      );
+
+      print('Get my exam result response status: ${response.statusCode}');
+      print('Get my exam result response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final result = json.decode(response.body);
+        return ExamResultResponse.fromJson(result);
+      } else {
+        print(
+          'Get my exam result failed: ${response.statusCode} - ${response.body}',
+        );
+        return null;
+      }
+    } catch (e) {
+      print('Get my exam result error: $e');
+      return null;
+    }
+  }
+
+  // Get exam with all results
+  static Future<Map<String, dynamic>?> getExamWithResults(String examId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/v1/education/exams/$examId/results'),
+        headers: headers,
+      );
+
+      print('Get exam with results response status: ${response.statusCode}');
+      print('Get exam with results response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        print(
+          'Get exam with results failed: ${response.statusCode} - ${response.body}',
+        );
+        return null;
+      }
+    } catch (e) {
+      print('Get exam with results error: $e');
+      return null;
+    }
+  }
+
+  // Get my exam history
+  static Future<List<ExamResultResponse>> getMyExamHistory({
+    int limit = 50,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/v1/education/my-exam-history?limit=$limit'),
+        headers: headers,
+      );
+
+      print('Get my exam history response status: ${response.statusCode}');
+      print('Get my exam history response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => ExamResultResponse.fromJson(item)).toList();
+      } else {
+        print(
+          'Get my exam history failed: ${response.statusCode} - ${response.body}',
+        );
+        return [];
+      }
+    } catch (e) {
+      print('Get my exam history error: $e');
+      return [];
+    }
   }
 
   static Future<Map<String, dynamic>?> updateUserProfile(
