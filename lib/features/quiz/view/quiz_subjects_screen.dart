@@ -60,8 +60,6 @@ class _QuizSubjectsScreenState extends State<QuizSubjectsScreen> {
       backgroundColor: AppColors.background,
       body: BlocBuilder<PremiumBloc, PremiumState>(
         builder: (context, premiumState) {
-          final userHasPremium = premiumState is PremiumActive;
-
           if (_isLoading) {
             return const Center(
               child: CircularProgressIndicator(
@@ -153,14 +151,8 @@ class _QuizSubjectsScreenState extends State<QuizSubjectsScreen> {
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final entry = allItems[index];
-              final najirIndex = entry.key;
               final item = entry.value;
-              return _buildExpandableNotesItem(
-                context,
-                index,
-                item,
-                !_najirs[najirIndex].hasAccess(userHasPremium),
-              );
+              return _buildExpandableNotesItem(context, index, item);
             },
           );
         },
@@ -363,7 +355,7 @@ class _QuizSubjectsScreenState extends State<QuizSubjectsScreen> {
                   children: notes.pdfs
                       .map(
                         (pdf) =>
-                            _buildPdfItem(context, najirTitle, pdf, !hasAccess),
+                            _buildPdfItem(context, najirTitle, pdf),
                       )
                       .toList(),
                 ),
@@ -378,9 +370,9 @@ class _QuizSubjectsScreenState extends State<QuizSubjectsScreen> {
     BuildContext context,
     int index,
     NotesResponse notes,
-    bool topicLocked,
   ) {
-    final bool hasAccess = notes.hasAccess(!topicLocked);
+    // Use the is_locked field directly from API instead of checking premium status
+    final bool isLocked = notes.isLocked;
     final String itemKey = '${notes.id}_$index';
     final bool isItemExpanded = _expanded[itemKey] ?? false;
 
@@ -391,7 +383,7 @@ class _QuizSubjectsScreenState extends State<QuizSubjectsScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: !hasAccess
+          color: isLocked
               ? Colors.grey.shade300
               : AppColors.primary.withValues(alpha: 0.1),
           width: 1,
@@ -402,10 +394,7 @@ class _QuizSubjectsScreenState extends State<QuizSubjectsScreen> {
           // Header section
           InkWell(
             onTap: () {
-              if (!hasAccess) {
-                _showUpgradeDialog(context, notes.name);
-                return;
-              }
+              // Always allow expansion - don't check hasAccess here
               setState(() {
                 _expanded[itemKey] = !isItemExpanded;
               });
@@ -420,14 +409,14 @@ class _QuizSubjectsScreenState extends State<QuizSubjectsScreen> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: !hasAccess
+                      color: isLocked
                           ? Colors.grey.shade100
                           : AppColors.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
-                      !hasAccess ? Icons.lock : Icons.quiz_outlined,
-                      color: !hasAccess
+                      isLocked ? Icons.lock : Icons.quiz_outlined,
+                      color: isLocked
                           ? Colors.grey.shade600
                           : AppColors.primary,
                       size: 22,
@@ -445,7 +434,7 @@ class _QuizSubjectsScreenState extends State<QuizSubjectsScreen> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: !hasAccess
+                            color: isLocked
                                 ? Colors.grey.shade600
                                 : Colors.black87,
                           ),
@@ -523,14 +512,7 @@ class _QuizSubjectsScreenState extends State<QuizSubjectsScreen> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: notes.pdfs
-                          .map(
-                            (pdf) => _buildPdfItem(
-                              context,
-                              notes.name,
-                              pdf,
-                              !hasAccess,
-                            ),
-                          )
+                          .map((pdf) => _buildPdfItem(context, notes.name, pdf))
                           .toList(),
                     ),
                   ),
@@ -546,15 +528,15 @@ class _QuizSubjectsScreenState extends State<QuizSubjectsScreen> {
     BuildContext context,
     String topicName,
     PDFResponse pdf,
-    bool topicLocked,
   ) {
-    final bool hasAccess = pdf.hasAccess(!topicLocked);
+    // Use the is_locked field directly from API instead of checking premium status
+    final bool locked = pdf.isLocked;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
       child: InkWell(
         onTap: () {
-          if (!hasAccess) {
+          if (locked) {
             _showUpgradeDialog(context, pdf.name);
             return;
           }
@@ -573,10 +555,10 @@ class _QuizSubjectsScreenState extends State<QuizSubjectsScreen> {
         child: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: !hasAccess ? Colors.grey.shade50 : Colors.white,
+            color: locked ? Colors.grey.shade50 : Colors.white,
             borderRadius: BorderRadius.circular(6),
             border: Border.all(
-              color: !hasAccess
+              color: locked
                   ? Colors.grey.shade200
                   : AppColors.primary.withValues(alpha: 0.1),
               width: 1,
@@ -589,14 +571,12 @@ class _QuizSubjectsScreenState extends State<QuizSubjectsScreen> {
                 width: 24,
                 height: 24,
                 decoration: BoxDecoration(
-                  color: !hasAccess ? Colors.grey.shade200 : Colors.red.shade50,
+                  color: locked ? Colors.grey.shade200 : Colors.red.shade50,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Icon(
                   Icons.picture_as_pdf_outlined,
-                  color: !hasAccess
-                      ? Colors.grey.shade600
-                      : Colors.red.shade600,
+                  color: locked ? Colors.grey.shade600 : Colors.red.shade600,
                   size: 12,
                 ),
               ),
@@ -609,7 +589,7 @@ class _QuizSubjectsScreenState extends State<QuizSubjectsScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: !hasAccess ? Colors.grey.shade600 : Colors.black87,
+                    color: locked ? Colors.grey.shade600 : Colors.black87,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -621,14 +601,14 @@ class _QuizSubjectsScreenState extends State<QuizSubjectsScreen> {
                 width: 24,
                 height: 24,
                 decoration: BoxDecoration(
-                  color: !hasAccess
+                  color: locked
                       ? Colors.grey.shade200
                       : AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: IconButton(
                   onPressed: () {
-                    if (!hasAccess) {
+                    if (locked) {
                       _showUpgradeDialog(context, pdf.name);
                       return;
                     }
@@ -644,15 +624,13 @@ class _QuizSubjectsScreenState extends State<QuizSubjectsScreen> {
                     );
                   },
                   icon: Icon(
-                    !hasAccess ? Icons.lock_outline : Icons.visibility_outlined,
+                    locked ? Icons.lock_outline : Icons.visibility_outlined,
                     size: 12,
-                    color: !hasAccess
-                        ? Colors.grey.shade600
-                        : AppColors.primary,
+                    color: locked ? Colors.grey.shade600 : AppColors.primary,
                   ),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
-                  tooltip: !hasAccess ? 'लक गरिएको' : 'पढ्नुहोस्',
+                  tooltip: locked ? 'लक गरिएको' : 'पढ्नुहोस्',
                 ),
               ),
             ],

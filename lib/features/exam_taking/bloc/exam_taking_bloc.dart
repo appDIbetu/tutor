@@ -149,23 +149,23 @@ class ExamTakingBloc extends Bloc<ExamTakingEvent, ExamTakingState> {
                 );
 
             if (result != null) {
-              print('✅ Exam result submitted successfully to API');
+              // Exam result submitted successfully to API
             } else {
-              print('❌ Failed to submit exam result to API - null response');
+              // Failed to submit exam result to API - null response
             }
           } else {
-            print('❌ No user data available for exam submission');
+            // No user data available for exam submission
           }
         } catch (e) {
-          print('❌ Error submitting exam result to API: $e');
+          // Error submitting exam result to API
           // Don't fail the exam completion if API submission fails
           // The exam is already completed locally
         }
       } else {
-        print('❌ No exam ID available for API submission');
+        // No exam ID available for API submission
       }
     } catch (e) {
-      print('❌ Critical error in exam submission: $e');
+      // Critical error in exam submission
       // Even if there's a critical error, mark exam as completed
       emit(
         state.copyWith(

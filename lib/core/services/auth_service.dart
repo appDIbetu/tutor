@@ -289,52 +289,42 @@ class AuthService {
           'last_signed_in': DateTime.now().toIso8601String(),
         };
 
-        print('Sending logout request to backend...');
         final result = await ApiService.updateFirebaseUserProfile(updateData);
 
         if (result != null) {
-          print(
-            '✅ Login status updated successfully: ${result['updated_fields']}',
-          );
+          // Login status updated successfully
           loginStatusUpdated = true;
         } else {
-          print('❌ Failed to update login status - API returned null');
+          // Failed to update login status - API returned null
         }
       } catch (e) {
-        print('❌ Error updating login status: $e');
+        // Error updating login status
       }
 
       // Wait a moment to ensure API call completes
       if (loginStatusUpdated) {
-        print('Step 2: Waiting for API call to complete...');
         await Future.delayed(const Duration(milliseconds: 500));
       }
-
-      print('Step 3: Proceeding with Firebase sign out...');
 
       // Sign out from Google and Firebase
       await _googleSignIn.signOut();
       await _auth.signOut();
 
-      print('Step 4: Clearing local data...');
-
       // Clear SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
 
-      print('✅ Sign out completed successfully');
+      // Sign out completed successfully
     } catch (e) {
-      print('❌ Sign out error: $e');
-      // Even if there's an error, try to clear local data
+      // Sign out error - Even if there's an error, try to clear local data
       try {
-        print('Attempting to clear local data despite error...');
         final prefs = await SharedPreferences.getInstance();
         await prefs.clear();
         await _googleSignIn.signOut();
         await _auth.signOut();
-        print('✅ Local data cleared despite error');
+        // Local data cleared despite error
       } catch (clearError) {
-        print('❌ Error clearing local data: $clearError');
+        // Error clearing local data
       }
     }
   }

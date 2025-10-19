@@ -9,11 +9,6 @@ class ApiService {
   // Get headers with ID token for authenticated requests
   static Future<Map<String, String>> _getHeaders() async {
     final token = await AuthService.getIdToken();
-    if (token == null) {
-      print('Warning: No ID token available for API request');
-    } else {
-      print('ID token available: ${token.substring(0, 20)}...');
-    }
     return {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $token',
@@ -48,28 +43,18 @@ class ApiService {
       final url = '$baseUrl$endpoint';
       final body = json.encode(data);
 
-      print('🌐 POST Request: $url');
-      print('📋 Headers: $headers');
-      print('📦 Request Body: $body');
-
       final response = await http.post(
         Uri.parse(url),
         headers: headers,
         body: body,
       );
 
-      print('📊 Response Status: ${response.statusCode}');
-      print('📄 Response Body: ${response.body}');
-      print('📋 Response Headers: ${response.headers}');
-
       if (response.statusCode == 200 || response.statusCode == 201) {
         return json.decode(response.body);
       } else {
-        print('❌ POST request failed: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      print('💥 POST request error: $e');
       return null;
     }
   }
@@ -90,11 +75,9 @@ class ApiService {
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        print('PUT request failed: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      print('PUT request error: $e');
       return null;
     }
   }
@@ -110,7 +93,6 @@ class ApiService {
 
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
-      print('DELETE request error: $e');
       return false;
     }
   }
@@ -121,8 +103,6 @@ class ApiService {
   ) async {
     try {
       final headers = await _getHeaders();
-      print('Updating Firebase user profile with data: $updateData');
-      print('Headers: $headers');
 
       final response = await http.put(
         Uri.parse('$baseUrl/api/v1/firebase/profile'),
@@ -130,21 +110,13 @@ class ApiService {
         body: json.encode(updateData),
       );
 
-      print('Profile update response status: ${response.statusCode}');
-      print('Profile update response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final result = json.decode(response.body);
-        print('Profile update successful: $result');
         return result;
       } else {
-        print(
-          'Profile update failed: ${response.statusCode} - ${response.body}',
-        );
         return null;
       }
     } catch (e) {
-      print('Profile update error: $e');
       return null;
     }
   }
@@ -164,11 +136,9 @@ class ApiService {
         // User is already logged in elsewhere
         throw Exception('User already logged in on another device');
       } else {
-        print('Firebase user request failed: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      print('Firebase user request error: $e');
       rethrow;
     }
   }
@@ -196,8 +166,6 @@ class ApiService {
   ) async {
     try {
       final headers = await _getHeaders();
-      print('Submitting exam result for exam: $examId');
-      print('Result data: ${result.toJson()}');
 
       final response = await http.post(
         Uri.parse('$baseUrl/api/v1/education/exams/$examId/submit'),
@@ -205,20 +173,13 @@ class ApiService {
         body: json.encode(result.toJson()),
       );
 
-      print('Exam submission response status: ${response.statusCode}');
-      print('Exam submission response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final result = json.decode(response.body);
         return ExamResultResponse.fromJson(result);
       } else {
-        print(
-          'Exam submission failed: ${response.statusCode} - ${response.body}',
-        );
         return null;
       }
     } catch (e) {
-      print('Exam submission error: $e');
       return null;
     }
   }
@@ -232,20 +193,13 @@ class ApiService {
         headers: headers,
       );
 
-      print('Get my exam result response status: ${response.statusCode}');
-      print('Get my exam result response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final result = json.decode(response.body);
         return ExamResultResponse.fromJson(result);
       } else {
-        print(
-          'Get my exam result failed: ${response.statusCode} - ${response.body}',
-        );
         return null;
       }
     } catch (e) {
-      print('Get my exam result error: $e');
       return null;
     }
   }
@@ -259,19 +213,12 @@ class ApiService {
         headers: headers,
       );
 
-      print('Get exam with results response status: ${response.statusCode}');
-      print('Get exam with results response body: ${response.body}');
-
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        print(
-          'Get exam with results failed: ${response.statusCode} - ${response.body}',
-        );
         return null;
       }
     } catch (e) {
-      print('Get exam with results error: $e');
       return null;
     }
   }
@@ -287,20 +234,13 @@ class ApiService {
         headers: headers,
       );
 
-      print('Get my exam history response status: ${response.statusCode}');
-      print('Get my exam history response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         return data.map((item) => ExamResultResponse.fromJson(item)).toList();
       } else {
-        print(
-          'Get my exam history failed: ${response.statusCode} - ${response.body}',
-        );
         return [];
       }
     } catch (e) {
-      print('Get my exam history error: $e');
       return [];
     }
   }
@@ -329,24 +269,15 @@ class ApiService {
         '$baseUrl/api/v1/education/subjects',
       ).replace(queryParameters: queryParams);
 
-      print('🌐 GET Subjects Request: $uri');
-      print('📋 Headers: $headers');
-
       final response = await http.get(uri, headers: headers);
-
-      print('📊 Get subjects response status: ${response.statusCode}');
-      print('📄 Get subjects response body: ${response.body}');
-      print('📋 Response Headers: ${response.headers}');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         return data.map((item) => SubjectListResponse.fromJson(item)).toList();
       } else {
-        print('Get subjects failed: ${response.statusCode} - ${response.body}');
         return [];
       }
     } catch (e) {
-      print('Get subjects error: $e');
       return [];
     }
   }
@@ -360,18 +291,13 @@ class ApiService {
         headers: headers,
       );
 
-      print('Get subject response status: ${response.statusCode}');
-      print('Get subject response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return SubjectResponse.fromJson(data);
       } else {
-        print('Get subject failed: ${response.statusCode} - ${response.body}');
         return null;
       }
     } catch (e) {
-      print('Get subject error: $e');
       return null;
     }
   }
@@ -396,25 +322,15 @@ class ApiService {
             },
           );
 
-      print('🌐 GET Subject Questions: $url');
-      print('📋 Headers: $headers');
-
       final response = await http.get(url, headers: headers);
-
-      print('📊 Response Status: ${response.statusCode}');
-      print('📄 Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return QuestionListResponse.fromJson(data);
       } else {
-        print(
-          '❌ Get subject questions failed: ${response.statusCode} - ${response.body}',
-        );
         return null;
       }
     } catch (e) {
-      print('💥 Get subject questions error: $e');
       return null;
     }
   }
@@ -437,18 +353,13 @@ class ApiService {
 
       final response = await http.get(uri, headers: headers);
 
-      print('Get exams response status: ${response.statusCode}');
-      print('Get exams response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         return data.map((item) => ExamListResponse.fromJson(item)).toList();
       } else {
-        print('Get exams failed: ${response.statusCode} - ${response.body}');
         return [];
       }
     } catch (e) {
-      print('Get exams error: $e');
       return [];
     }
   }
@@ -462,18 +373,13 @@ class ApiService {
         headers: headers,
       );
 
-      print('Get exam response status: ${response.statusCode}');
-      print('Get exam response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return ExamResponse.fromJson(data);
       } else {
-        print('Get exam failed: ${response.statusCode} - ${response.body}');
         return null;
       }
     } catch (e) {
-      print('Get exam error: $e');
       return null;
     }
   }
@@ -496,24 +402,15 @@ class ApiService {
         '$baseUrl/api/v1/education/notes',
       ).replace(queryParameters: queryParams);
 
-      print('🌐 GET Notes Request: $uri');
-      print('📋 Headers: $headers');
-
       final response = await http.get(uri, headers: headers);
-
-      print('📊 Get notes response status: ${response.statusCode}');
-      print('📄 Get notes response body: ${response.body}');
-      print('📋 Response Headers: ${response.headers}');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         return data.map((item) => NotesResponse.fromJson(item)).toList();
       } else {
-        print('Get notes failed: ${response.statusCode} - ${response.body}');
         return [];
       }
     } catch (e) {
-      print('Get notes error: $e');
       return [];
     }
   }
@@ -536,18 +433,13 @@ class ApiService {
 
       final response = await http.get(uri, headers: headers);
 
-      print('Get drafting response status: ${response.statusCode}');
-      print('Get drafting response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         return data.map((item) => DraftingResponse.fromJson(item)).toList();
       } else {
-        print('Get drafting failed: ${response.statusCode} - ${response.body}');
         return [];
       }
     } catch (e) {
-      print('Get drafting error: $e');
       return [];
     }
   }
@@ -561,20 +453,13 @@ class ApiService {
         headers: headers,
       );
 
-      print('Get drafting by ID response status: ${response.statusCode}');
-      print('Get drafting by ID response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return DraftingResponse.fromJson(data);
       } else {
-        print(
-          'Get drafting by ID failed: ${response.statusCode} - ${response.body}',
-        );
         return null;
       }
     } catch (e) {
-      print('Get drafting by ID error: $e');
       return null;
     }
   }
@@ -592,20 +477,13 @@ class ApiService {
 
       final response = await http.get(uri, headers: headers);
 
-      print('Search drafting response status: ${response.statusCode}');
-      print('Search drafting response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         return data.map((item) => DraftingResponse.fromJson(item)).toList();
       } else {
-        print(
-          'Search drafting failed: ${response.statusCode} - ${response.body}',
-        );
         return [];
       }
     } catch (e) {
-      print('Search drafting error: $e');
       return [];
     }
   }
@@ -622,22 +500,15 @@ class ApiService {
 
       final response = await http.get(uri, headers: headers);
 
-      print('Get upcoming exam najirs response status: ${response.statusCode}');
-      print('Get upcoming exam najirs response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         return data
             .map((item) => UpcomingExamNajirsResponse.fromJson(item))
             .toList();
       } else {
-        print(
-          'Get upcoming exam najirs failed: ${response.statusCode} - ${response.body}',
-        );
         return [];
       }
     } catch (e) {
-      print('Get upcoming exam najirs error: $e');
       return [];
     }
   }
@@ -654,20 +525,13 @@ class ApiService {
 
       final response = await http.get(uri, headers: headers);
 
-      print('Get upcoming exam najir response status: ${response.statusCode}');
-      print('Get upcoming exam najir response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return UpcomingExamNajirsResponse.fromJson(data);
       } else {
-        print(
-          'Get upcoming exam najir failed: ${response.statusCode} - ${response.body}',
-        );
         return null;
       }
     } catch (e) {
-      print('Get upcoming exam najir error: $e');
       return null;
     }
   }
@@ -685,24 +549,15 @@ class ApiService {
 
       final response = await http.get(uri, headers: headers);
 
-      print(
-        'Search upcoming exam najirs response status: ${response.statusCode}',
-      );
-      print('Search upcoming exam najirs response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         return data
             .map((item) => UpcomingExamNajirsResponse.fromJson(item))
             .toList();
       } else {
-        print(
-          'Search upcoming exam najirs failed: ${response.statusCode} - ${response.body}',
-        );
         return [];
       }
     } catch (e) {
-      print('Search upcoming exam najirs error: $e');
       return [];
     }
   }
