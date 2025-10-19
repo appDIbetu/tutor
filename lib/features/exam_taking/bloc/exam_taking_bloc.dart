@@ -68,87 +68,116 @@ class ExamTakingBloc extends Bloc<ExamTakingEvent, ExamTakingState> {
   ) async {
     _timer?.cancel();
 
-    // Calculate results locally first
-    int correctAnswers = 0;
-    int wrongAnswers = 0;
-    for (int i = 0; i < state.questions.length; i++) {
-      final selected = state.selectedAnswers[i];
-      if (selected == null) continue;
-      if (selected == state.questions[i].correctAnswerIndex) {
-        correctAnswers++;
-      } else {
-        wrongAnswers++;
-      }
-    }
-    final int unattempted =
-        state.questions.length - (correctAnswers + wrongAnswers);
-    final int timeTaken = state.durationSeconds - state.remainingTime;
-
-    // Marking scheme from exam API
-    final double positiveMark = state.positiveMark;
-    final double negativeMark = state.negativeMark;
-    final double marks =
-        (correctAnswers * positiveMark) - (wrongAnswers * negativeMark);
-
-    // Update state with local results
-    emit(
-      state.copyWith(
-        status: ExamStatus.completed,
-        score: correctAnswers,
-        correctCount: correctAnswers,
-        wrongCount: wrongAnswers,
-        unattemptedCount: unattempted,
-        timeTakenSeconds: timeTaken,
-        positiveMark: positiveMark,
-        negativeMark: negativeMark,
-        finalMarks: marks,
-      ),
-    );
-
-    // Submit to API if examId is available
-    if (state.examId != null) {
-      try {
-        // Get current user ID
-        final userData = await AuthService.getSavedFirebaseUserData();
-        if (userData != null) {
-          // Create exam result for API submission
-          final examResult = ExamResultCreate(
-            studentId: userData.uid,
-            score: marks,
-            positiveMark: positiveMark,
-            negativeMark: negativeMark,
-            totalQuestions: state.questions.length,
-            attemptedQuestions: correctAnswers + wrongAnswers,
-            correctAnswers: correctAnswers,
-            wrongAnswers: wrongAnswers,
-            skippedQuestions: unattempted,
-            avgSpeed: timeTaken > 0
-                ? (correctAnswers + wrongAnswers) / (timeTaken / 60.0)
-                : 0.0,
-            selectedIndexes: state.selectedAnswers.values.toList(),
-            timeTaken: timeTaken,
-            isCompleted: true,
-          );
-
-          // Submit to API
-          final result = await ApiService.submitExamResult(
-            state.examId!,
-            examResult,
-          );
-          if (result != null) {
-            print('Exam result submitted successfully to API');
-          } else {
-            print('Failed to submit exam result to API');
-          }
+    try {
+      // Calculate results locally first
+      int correctAnswers = 0;
+      int wrongAnswers = 0;
+      for (int i = 0; i < state.questions.length; i++) {
+        final selected = state.selectedAnswers[i];
+        if (selected == null) continue;
+        if (selected == state.questions[i].correctAnswerIndex) {
+          correctAnswers++;
         } else {
-          print('No user data available for exam submission');
+          wrongAnswers++;
         }
-      } catch (e) {
-        print('Error submitting exam result to API: $e');
-        // Don't fail the exam completion if API submission fails
       }
-    } else {
-      print('No exam ID available for API submission');
+      final int unattempted =
+          state.questions.length - (correctAnswers + wrongAnswers);
+      final int timeTaken = state.durationSeconds - state.remainingTime;
+
+      // Marking scheme from exam API
+      final double positiveMark = state.positiveMark;
+      final double negativeMark = state.negativeMark;
+      final double marks =
+          (correctAnswers * positiveMark) - (wrongAnswers * negativeMark);
+
+      // Update state with local results first
+      emit(
+        state.copyWith(
+          status: ExamStatus.completed,
+          score: correctAnswers,
+          correctCount: correctAnswers,
+          wrongCount: wrongAnswers,
+          unattemptedCount: unattempted,
+          timeTakenSeconds: timeTaken,
+          positiveMark: positiveMark,
+          negativeMark: negativeMark,
+          finalMarks: marks,
+        ),
+      );
+
+      // Submit to API if examId is available
+      if (state.examId != null) {
+        try {
+          // Get current user ID
+          final userData = await AuthService.getSavedFirebaseUserData();
+          if (userData != null) {
+            // Create exam result for API submission
+            final examResult = ExamResultCreate(
+              studentId: userData.uid,
+              score: marks,
+              positiveMark: positiveMark,
+              negativeMark: negativeMark,
+              totalQuestions: state.questions.length,
+              attemptedQuestions: correctAnswers + wrongAnswers,
+              correctAnswers: correctAnswers,
+              wrongAnswers: wrongAnswers,
+              skippedQuestions: unattempted,
+              avgSpeed: timeTaken > 0
+                  ? (correctAnswers + wrongAnswers) / (timeTaken / 60.0)
+                  : 0.0,
+              selectedIndexes: state.selectedAnswers.values.toList(),
+              timeTaken: timeTaken,
+              isCompleted: true,
+            );
+
+            print('Submitting exam result to API...');
+            print('Exam ID: ${state.examId}');
+            print('Student ID: ${userData.uid}');
+            print('Score: $marks');
+
+            // Submit to API with timeout
+            final result =
+                await ApiService.submitExamResult(
+                  state.examId!,
+                  examResult,
+                ).timeout(
+                  const Duration(seconds: 30),
+                  onTimeout: () {
+                    throw Exception('API submission timeout');
+                  },
+                );
+
+            if (result != null) {
+              print('✅ Exam result submitted successfully to API');
+            } else {
+              print('❌ Failed to submit exam result to API - null response');
+            }
+          } else {
+            print('❌ No user data available for exam submission');
+          }
+        } catch (e) {
+          print('❌ Error submitting exam result to API: $e');
+          // Don't fail the exam completion if API submission fails
+          // The exam is already completed locally
+        }
+      } else {
+        print('❌ No exam ID available for API submission');
+      }
+    } catch (e) {
+      print('❌ Critical error in exam submission: $e');
+      // Even if there's a critical error, mark exam as completed
+      emit(
+        state.copyWith(
+          status: ExamStatus.completed,
+          score: 0,
+          correctCount: 0,
+          wrongCount: 0,
+          unattemptedCount: state.questions.length,
+          timeTakenSeconds: state.durationSeconds - state.remainingTime,
+          finalMarks: 0.0,
+        ),
+      );
     }
   }
 

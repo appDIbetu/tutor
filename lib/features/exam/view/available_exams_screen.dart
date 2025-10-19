@@ -463,20 +463,63 @@ class _AvailableExamsScreenState extends State<AvailableExamsScreen> {
     BuildContext context,
     ExamListResponse exam,
   ) async {
-    try {
-      // Show loading indicator
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator()),
-      );
+    bool isLoadingDialogOpen = false;
 
-      // Fetch exam details with questions and actual result
-      final examDetails = await ApiService.getExam(exam.examId);
-      final examResult = await ApiService.getMyExamResult(exam.examId);
+    try {
+      // Show loading indicator with better error handling
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+            child: Card(
+              child: Padding(
+                padding: EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text(
+                      'Loading exam result...',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Fetching exam details and results',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+        isLoadingDialogOpen = true;
+      }
+
+      // Fetch exam details and result concurrently to avoid progress bar stuck
+      final results =
+          await Future.wait([
+            ApiService.getExam(exam.examId),
+            ApiService.getMyExamResult(exam.examId),
+          ]).timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              throw Exception(
+                'Request timeout. Please check your internet connection.',
+              );
+            },
+          );
+
+      final examDetails = results[0] as ExamResponse?;
+      final examResult = results[1] as ExamResultResponse?;
 
       // Close loading dialog
-      if (context.mounted) Navigator.of(context).pop();
+      if (context.mounted && isLoadingDialogOpen) {
+        Navigator.of(context).pop();
+        isLoadingDialogOpen = false;
+      }
 
       if (examDetails == null) {
         throw Exception('Failed to load exam details');
@@ -530,12 +573,19 @@ class _AvailableExamsScreenState extends State<AvailableExamsScreen> {
       }
     } catch (e) {
       // Close loading dialog if still open
-      if (context.mounted) Navigator.of(context).pop();
+      if (context.mounted && isLoadingDialogOpen) {
+        Navigator.of(context).pop();
+        isLoadingDialogOpen = false;
+      }
 
       // Show error snackbar
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading exam result: $e')),
+          SnackBar(
+            content: Text('Error loading exam result: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
         );
       }
     }
