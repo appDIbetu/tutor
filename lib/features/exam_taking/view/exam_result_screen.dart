@@ -391,9 +391,21 @@ class _ExamResultScreenState extends State<ExamResultScreen> {
               ],
             ),
           ),
-          Text(
-            widget.resultState.finalMarks.toStringAsFixed(2),
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                widget.resultState.finalMarks.toStringAsFixed(2),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                '${widget.resultState.correctCount}/${widget.resultState.totalQuestions}',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
           ),
         ],
       ),
@@ -414,27 +426,28 @@ class _ExamResultScreenState extends State<ExamResultScreen> {
   }
 
   Widget _legendRow() {
-    Widget item(Color color, String label) => Row(
+    Widget item(Color color, String label, int count) => Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: 12,
           height: 12,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-        const SizedBox(width: 6),
-        Text(label),
+        const SizedBox(width: 4),
+        Text('$label ($count)', style: const TextStyle(fontSize: 12)),
       ],
     );
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 12,
+        runSpacing: 8,
         children: [
-          item(Colors.green, 'Correct'),
-          const SizedBox(width: 16),
-          item(Colors.red, 'Wrong'),
-          const SizedBox(width: 16),
-          item(Colors.grey, 'Unattempted'),
+          item(Colors.green, 'Correct', widget.resultState.correctCount),
+          item(Colors.red, 'Wrong', widget.resultState.wrongCount),
+          item(Colors.grey, 'Unattempted', widget.resultState.unattemptedCount),
         ],
       ),
     );

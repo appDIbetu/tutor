@@ -360,15 +360,31 @@ class _AvailableExamsScreenState extends State<AvailableExamsScreen> {
             const Divider(height: 1),
             const SizedBox(height: 12),
             // Stats row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildDetailColumn(
-                  'अवधि',
-                  _formatDuration(exam.perQsnDuration * exam.numberOfQuestions),
-                ),
-                _buildDetailColumn('प्रश्नहरू', '${exam.numberOfQuestions}'),
-              ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildDetailColumn(
+                    'अवधि',
+                    _formatDuration(
+                      exam.perQsnDuration * exam.numberOfQuestions,
+                    ),
+                    icon: Icons.access_time,
+                  ),
+                  _buildDetailColumn(
+                    'प्रश्नहरू',
+                    '${exam.numberOfQuestions}',
+                    icon: Icons.quiz,
+                  ),
+                  if (exam.passPercent != null)
+                    _buildDetailColumn(
+                      'उत्तीर्णांक',
+                      '${(exam.passPercent! * exam.numberOfQuestions * exam.posMarking / 100).toInt()}',
+                      icon: Icons.flag,
+                    ),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
             // Single action button
@@ -427,21 +443,27 @@ class _AvailableExamsScreenState extends State<AvailableExamsScreen> {
     );
   }
 
-  Widget _buildDetailColumn(String title, String value) {
+  Widget _buildDetailColumn(String title, String value, {IconData? icon}) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
+        if (icon != null) ...[
+          Icon(icon, size: 16, color: Colors.black54),
+          const SizedBox(height: 4),
+        ],
         Text(
           title,
           style: const TextStyle(color: Colors.black54, fontSize: 12),
+          textAlign: TextAlign.center,
         ),
         Text(
           value,
           style: const TextStyle(
             fontWeight: FontWeight.w600,
-            fontSize: 14,
+            fontSize: 12,
             color: Colors.black87,
           ),
+          textAlign: TextAlign.center,
         ),
       ],
     );
@@ -452,11 +474,7 @@ class _AvailableExamsScreenState extends State<AvailableExamsScreen> {
     final int minutes = (totalSeconds % 3600) ~/ 60;
     final int seconds = totalSeconds % 60;
 
-    if (hours > 0) {
-      return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-    } else {
-      return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-    }
+    return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   Future<void> _navigateToResultScreen(

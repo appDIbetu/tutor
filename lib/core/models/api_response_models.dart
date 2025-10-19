@@ -144,6 +144,7 @@ class ExamListResponse extends LockableItem {
   final int totalAttempts;
   final bool attempted;
   final ExamResultResponse? studentResult;
+  final double? passPercent;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -161,6 +162,7 @@ class ExamListResponse extends LockableItem {
     this.totalAttempts = 0,
     this.attempted = false,
     this.studentResult,
+    this.passPercent,
     this.createdAt,
     this.updatedAt,
   }) : super(isPremium: isPremium, isLocked: isLocked);
@@ -181,6 +183,9 @@ class ExamListResponse extends LockableItem {
       attempted: json['attempted'] ?? false,
       studentResult: json['student_result'] != null
           ? ExamResultResponse.fromJson(json['student_result'])
+          : null,
+      passPercent: json['pass_percent'] != null
+          ? (json['pass_percent'] as num).toDouble()
           : null,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
@@ -205,6 +210,7 @@ class ExamListResponse extends LockableItem {
     totalAttempts,
     attempted,
     studentResult,
+    passPercent,
     createdAt,
     updatedAt,
   ];

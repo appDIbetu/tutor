@@ -613,6 +613,7 @@ class _ScrollableQuestionsViewState extends State<_ScrollableQuestionsView> {
     final attempted = state.selectedAnswers.length;
     final total = state.questions.length;
     final unattempted = total - attempted;
+    bool isSubmitClicked = false;
 
     showDialog(
       context: context,
@@ -816,13 +817,20 @@ class _ScrollableQuestionsViewState extends State<_ScrollableQuestionsView> {
                         child: const Text('Cancel'),
                       ),
                       ElevatedButton(
-                        onPressed: () {
-                          bloc.add(ExamSubmitted());
-                        },
+                        onPressed: isSubmitClicked
+                            ? null
+                            : () {
+                                setState(() {
+                                  isSubmitClicked = true;
+                                });
+                                bloc.add(ExamSubmitted());
+                              },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                         ),
-                        child: const Text('Submit'),
+                        child: Text(
+                          isSubmitClicked ? 'Submitting...' : 'Submit',
+                        ),
                       ),
                     ],
                   ],
