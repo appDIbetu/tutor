@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../services/auth_service.dart';
+import '../models/api_response_models.dart';
 
 class ApiService {
   static const String baseUrl = 'https://bkd.pdfy.cloud';
@@ -190,5 +191,253 @@ class ApiService {
     Map<String, dynamic> profile,
   ) async {
     return await put('/user/profile', profile);
+  }
+
+  // Educational Platform APIs
+
+  // Get subjects with access control
+  static Future<List<SubjectListResponse>> getSubjectsWithAccess({
+    String? category,
+    int limit = 50,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      final queryParams = <String, String>{'limit': limit.toString()};
+      if (category != null) {
+        queryParams['category'] = category;
+      }
+
+      final uri = Uri.parse(
+        '$baseUrl/api/v1/education/subjects',
+      ).replace(queryParameters: queryParams);
+
+      final response = await http.get(uri, headers: headers);
+
+      print('Get subjects response status: ${response.statusCode}');
+      print('Get subjects response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => SubjectListResponse.fromJson(item)).toList();
+      } else {
+        print('Get subjects failed: ${response.statusCode} - ${response.body}');
+        return [];
+      }
+    } catch (e) {
+      print('Get subjects error: $e');
+      return [];
+    }
+  }
+
+  // Get specific subject with questions
+  static Future<SubjectResponse?> getSubject(String subjectId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/v1/education/subjects/$subjectId'),
+        headers: headers,
+      );
+
+      print('Get subject response status: ${response.statusCode}');
+      print('Get subject response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return SubjectResponse.fromJson(data);
+      } else {
+        print('Get subject failed: ${response.statusCode} - ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('Get subject error: $e');
+      return null;
+    }
+  }
+
+  // Get exams with access control
+  static Future<List<ExamListResponse>> getExamsWithAccess({
+    String? category,
+    int limit = 50,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      final queryParams = <String, String>{'limit': limit.toString()};
+      if (category != null) {
+        queryParams['category'] = category;
+      }
+
+      final uri = Uri.parse(
+        '$baseUrl/api/v1/education/exams',
+      ).replace(queryParameters: queryParams);
+
+      final response = await http.get(uri, headers: headers);
+
+      print('Get exams response status: ${response.statusCode}');
+      print('Get exams response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => ExamListResponse.fromJson(item)).toList();
+      } else {
+        print('Get exams failed: ${response.statusCode} - ${response.body}');
+        return [];
+      }
+    } catch (e) {
+      print('Get exams error: $e');
+      return [];
+    }
+  }
+
+  // Get specific exam with questions
+  static Future<ExamResponse?> getExam(String examId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/v1/education/exams/$examId'),
+        headers: headers,
+      );
+
+      print('Get exam response status: ${response.statusCode}');
+      print('Get exam response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return ExamResponse.fromJson(data);
+      } else {
+        print('Get exam failed: ${response.statusCode} - ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('Get exam error: $e');
+      return null;
+    }
+  }
+
+  // Get notes with access control
+  static Future<List<NotesResponse>> getNotesWithAccess({
+    bool premiumOnly = false,
+    bool freeOnly = false,
+    int limit = 50,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      final queryParams = <String, String>{
+        'limit': limit.toString(),
+        'premium_only': premiumOnly.toString(),
+        'free_only': freeOnly.toString(),
+      };
+
+      final uri = Uri.parse(
+        '$baseUrl/api/v1/education/notes',
+      ).replace(queryParameters: queryParams);
+
+      final response = await http.get(uri, headers: headers);
+
+      print('Get notes response status: ${response.statusCode}');
+      print('Get notes response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => NotesResponse.fromJson(item)).toList();
+      } else {
+        print('Get notes failed: ${response.statusCode} - ${response.body}');
+        return [];
+      }
+    } catch (e) {
+      print('Get notes error: $e');
+      return [];
+    }
+  }
+
+  // Get drafting (Masyauda Lekhan) with access control
+  static Future<List<DraftingResponse>> getDrafting({
+    String? category,
+    int limit = 100,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      final queryParams = <String, String>{'limit': limit.toString()};
+      if (category != null) {
+        queryParams['category'] = category;
+      }
+
+      final uri = Uri.parse(
+        '$baseUrl/api/v1/education/drafting',
+      ).replace(queryParameters: queryParams);
+
+      final response = await http.get(uri, headers: headers);
+
+      print('Get drafting response status: ${response.statusCode}');
+      print('Get drafting response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => DraftingResponse.fromJson(item)).toList();
+      } else {
+        print('Get drafting failed: ${response.statusCode} - ${response.body}');
+        return [];
+      }
+    } catch (e) {
+      print('Get drafting error: $e');
+      return [];
+    }
+  }
+
+  // Get specific drafting by ID
+  static Future<DraftingResponse?> getDraftingById(String draftingId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/v1/education/drafting/$draftingId'),
+        headers: headers,
+      );
+
+      print('Get drafting by ID response status: ${response.statusCode}');
+      print('Get drafting by ID response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return DraftingResponse.fromJson(data);
+      } else {
+        print(
+          'Get drafting by ID failed: ${response.statusCode} - ${response.body}',
+        );
+        return null;
+      }
+    } catch (e) {
+      print('Get drafting by ID error: $e');
+      return null;
+    }
+  }
+
+  // Search drafting
+  static Future<List<DraftingResponse>> searchDrafting({
+    required String query,
+    int limit = 20,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      final uri = Uri.parse(
+        '$baseUrl/api/v1/education/drafting/search',
+      ).replace(queryParameters: {'query': query, 'limit': limit.toString()});
+
+      final response = await http.get(uri, headers: headers);
+
+      print('Search drafting response status: ${response.statusCode}');
+      print('Search drafting response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => DraftingResponse.fromJson(item)).toList();
+      } else {
+        print(
+          'Search drafting failed: ${response.statusCode} - ${response.body}',
+        );
+        return [];
+      }
+    } catch (e) {
+      print('Search drafting error: $e');
+      return [];
+    }
   }
 }

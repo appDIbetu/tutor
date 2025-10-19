@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/services/api_service.dart';
+import '../../../core/models/api_response_models.dart';
+import '../../../core/helpers/premium_access_helper.dart';
 import '../../notes/view/pdf_viewer_screen.dart';
 
 class MasyaudaSubjectsScreen extends StatefulWidget {
@@ -9,39 +12,42 @@ class MasyaudaSubjectsScreen extends StatefulWidget {
   State<MasyaudaSubjectsScreen> createState() => _MasyaudaSubjectsScreenState();
 }
 
-class _MasyaudaTopic {
-  final String id;
-  final String name;
-  final bool isPremium;
-  final List<_MasyaudaPdf> pdfs;
-  const _MasyaudaTopic({
-    required this.id,
-    required this.name,
-    required this.isPremium,
-    required this.pdfs,
-  });
-}
-
-class _MasyaudaPdf {
-  final String id;
-  final String name;
-  final String downloadUrl;
-  final int pageCount;
-  final bool isPremium;
-  const _MasyaudaPdf({
-    required this.id,
-    required this.name,
-    required this.downloadUrl,
-    required this.pageCount,
-    required this.isPremium,
-  });
-}
+// Old model classes removed - now using API models
 
 class _MasyaudaSubjectsScreenState extends State<MasyaudaSubjectsScreen> {
   final Map<String, bool> _expanded = {};
+  List<DraftingResponse> _draftingTopics = [];
+  bool _isLoading = true;
+  String? _error;
 
-  // Static sample data based on the syllabus image
-  final List<_MasyaudaTopic> _topics = const [
+  @override
+  void initState() {
+    super.initState();
+    _loadDraftingTopics();
+  }
+
+  Future<void> _loadDraftingTopics() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      final topics = await ApiService.getDrafting();
+      setState(() {
+        _draftingTopics = topics;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Static sample data based on the syllabus image (fallback) - removed as we now use API
+  /*
     _MasyaudaTopic(
       id: 'masyauda_dewani',
       name: 'देवानी मुद्दाको लिखतको मस्यौदा',
@@ -219,8 +225,7 @@ class _MasyaudaSubjectsScreenState extends State<MasyaudaSubjectsScreen> {
       ],
     ),
   ];
-
-  final bool _userHasPremium = false; // adapt from state when available
+  */
 
   @override
   Widget build(BuildContext context) {
@@ -234,25 +239,119 @@ class _MasyaudaSubjectsScreenState extends State<MasyaudaSubjectsScreen> {
         ),
       ),
       backgroundColor: AppColors.background,
-      body: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: _topics.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final topic = _topics[index];
-          final isExpanded = _expanded[topic.id] ?? false;
-          return _buildTopicCard(context, topic, isExpanded);
-        },
-      ),
+      body: _buildBody(),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              'Error loading drafting topics',
+              style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadDraftingTopics,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+              ),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_draftingTopics.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.description_outlined,
+              size: 64,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No drafting topics available',
+              style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Check back later for new content',
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: _draftingTopics.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final topic = _draftingTopics[index];
+        final isExpanded = _expanded[topic.id] ?? false;
+        return _buildTopicCard(context, topic, isExpanded);
+      },
     );
   }
 
   Widget _buildTopicCard(
     BuildContext context,
-    _MasyaudaTopic topic,
+    DraftingResponse topic,
     bool isExpanded,
   ) {
-    final bool locked = topic.isPremium && !_userHasPremium;
+    return PremiumAccessHelper.wrapWithAccessControl(
+      context,
+      item: topic,
+      message: topic.isLocked
+          ? 'This drafting topic is locked. Upgrade to premium to access.'
+          : 'This is a premium drafting topic. Upgrade to access.',
+      onUpgrade: () {
+        // TODO: Navigate to premium upgrade screen
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Premium upgrade feature coming soon!'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+      },
+      child: _buildTopicCardContent(context, topic, isExpanded),
+    );
+  }
+
+  Widget _buildTopicCardContent(
+    BuildContext context,
+    DraftingResponse topic,
+    bool isExpanded,
+  ) {
+    final bool userHasAccess = PremiumAccessHelper.hasAccessToItem(
+      context,
+      topic,
+    );
 
     return Card(
       margin: EdgeInsets.zero,
@@ -261,7 +360,7 @@ class _MasyaudaSubjectsScreenState extends State<MasyaudaSubjectsScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: locked
+          color: !userHasAccess
               ? Colors.grey.shade300
               : AppColors.primary.withValues(alpha: 0.1),
           width: 1,
@@ -286,14 +385,16 @@ class _MasyaudaSubjectsScreenState extends State<MasyaudaSubjectsScreen> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: locked
+                      color: !userHasAccess
                           ? Colors.grey.shade100
                           : AppColors.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
-                      locked ? Icons.lock : Icons.folder_open,
-                      color: locked ? Colors.grey.shade600 : AppColors.primary,
+                      !userHasAccess ? Icons.lock : Icons.folder_open,
+                      color: !userHasAccess
+                          ? Colors.grey.shade600
+                          : AppColors.primary,
                       size: 22,
                     ),
                   ),
@@ -309,7 +410,7 @@ class _MasyaudaSubjectsScreenState extends State<MasyaudaSubjectsScreen> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: locked
+                            color: !userHasAccess
                                 ? Colors.grey.shade600
                                 : Colors.black87,
                           ),
@@ -388,8 +489,12 @@ class _MasyaudaSubjectsScreenState extends State<MasyaudaSubjectsScreen> {
                     child: Column(
                       children: topic.pdfs
                           .map(
-                            (pdf) =>
-                                _buildPdfItem(context, topic.name, pdf, locked),
+                            (pdf) => _buildPdfItem(
+                              context,
+                              topic.name,
+                              pdf,
+                              !userHasAccess,
+                            ),
                           )
                           .toList(),
                     ),
@@ -405,10 +510,39 @@ class _MasyaudaSubjectsScreenState extends State<MasyaudaSubjectsScreen> {
   Widget _buildPdfItem(
     BuildContext context,
     String topicName,
-    _MasyaudaPdf pdf,
+    PDFResponse pdf,
     bool topicLocked,
   ) {
-    final bool locked = (pdf.isPremium || topicLocked) && !_userHasPremium;
+    return PremiumAccessHelper.wrapWithAccessControl(
+      context,
+      item: pdf,
+      message: pdf.isLocked
+          ? 'This PDF is locked. Upgrade to premium to access.'
+          : 'This is a premium PDF. Upgrade to access.',
+      onUpgrade: () {
+        // TODO: Navigate to premium upgrade screen
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Premium upgrade feature coming soon!'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+      },
+      child: _buildPdfItemContent(context, topicName, pdf, topicLocked),
+    );
+  }
+
+  Widget _buildPdfItemContent(
+    BuildContext context,
+    String topicName,
+    PDFResponse pdf,
+    bool topicLocked,
+  ) {
+    final bool userHasAccess = PremiumAccessHelper.hasAccessToItem(
+      context,
+      pdf,
+    );
+    final bool locked = !userHasAccess || topicLocked;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),

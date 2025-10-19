@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../premium/premium_bloc.dart';
 import '../widgets/premium_widgets.dart';
+import '../models/api_response_models.dart';
 
 class PremiumAccessHelper {
   // Check if user has premium access
@@ -13,6 +14,12 @@ class PremiumAccessHelper {
   // Get premium status from context
   static PremiumState getPremiumState(BuildContext context) {
     return context.read<PremiumBloc>().state;
+  }
+
+  // Check if user has access to a specific item based on is_locked and is_premium
+  static bool hasAccessToItem(BuildContext context, LockableItem item) {
+    final userIsPremium = hasPremiumAccess(context);
+    return item.hasAccess(userIsPremium);
   }
 
   // Wrap content with premium lock if user doesn't have access
@@ -35,6 +42,42 @@ class PremiumAccessHelper {
         }
       },
     );
+  }
+
+  // Wrap content with access control based on item's locked status
+  static Widget wrapWithAccessControl(
+    BuildContext context, {
+    required LockableItem item,
+    required Widget child,
+    String? message,
+    VoidCallback? onUpgrade,
+  }) {
+    return BlocBuilder<PremiumBloc, PremiumState>(
+      builder: (context, state) {
+        final userIsPremium = state is PremiumActive;
+        final hasAccess = item.hasAccess(userIsPremium);
+
+        if (hasAccess) {
+          return child;
+        } else {
+          return PremiumLockWidget(
+            message: message ?? _getDefaultLockMessage(item),
+            onUpgrade: onUpgrade,
+            child: child,
+          );
+        }
+      },
+    );
+  }
+
+  // Get appropriate lock message based on item type
+  static String _getDefaultLockMessage(LockableItem item) {
+    if (item.isLocked) {
+      return 'This content is locked. Upgrade to premium to access.';
+    } else if (item.isPremium) {
+      return 'This is a premium feature. Upgrade to access.';
+    }
+    return 'Access denied. Please upgrade to premium.';
   }
 
   // Show premium badge if user has premium

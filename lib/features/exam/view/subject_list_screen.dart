@@ -1,57 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'dart:math' as math;
 import '../../../core/constants/app_colors.dart';
 import '../../../core/premium/premium_bloc.dart';
 import '../../../core/helpers/premium_access_helper.dart';
+import '../../../core/services/api_service.dart';
+import '../../../core/models/api_response_models.dart';
 import '../../exam_taking/view/exam_taking_screen.dart';
-import '../../exam_taking/models/exam_attempt_model.dart';
 
-class Subject {
-  final String id;
-  final String name;
-  final int numberOfQuestions;
-  final int durationMinutes;
-  final int passMark;
-  final bool isPremium;
-  final bool hasAttempted;
-  final bool isSpecial;
-  final ExamAttempt? lastAttempt;
-
-  const Subject({
-    required this.id,
-    required this.name,
-    required this.numberOfQuestions,
-    required this.durationMinutes,
-    required this.passMark,
-    required this.isPremium,
-    this.hasAttempted = false,
-    this.isSpecial = false,
-    this.lastAttempt,
-  });
-
-  factory Subject.fromJson(Map<String, dynamic> json) {
-    return Subject(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      numberOfQuestions: json['numberOfQuestions'] as int,
-      durationMinutes: json['durationMinutes'] as int,
-      passMark: json['passMark'] as int,
-      isPremium: json['isPremium'] as bool,
-      hasAttempted: json['hasAttempted'] as bool? ?? false,
-      isSpecial: json['isSpecial'] as bool? ?? false,
-      lastAttempt: json['lastAttempt'] != null
-          ? ExamAttempt.fromJson(json['lastAttempt'] as Map<String, dynamic>)
-          : null,
-    );
-  }
-}
+// Old Subject class removed - now using SubjectListResponse from API models
 
 Widget _buildList(
   BuildContext context,
-  List<Subject> subjects,
+  List<SubjectListResponse> subjects,
   bool userHasPremium,
 ) {
+  if (subjects.isEmpty) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.book_outlined, size: 64, color: Colors.grey.shade400),
+          const SizedBox(height: 16),
+          Text(
+            'No subjects available',
+            style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Check back later for new content',
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+          ),
+        ],
+      ),
+    );
+  }
+
   return ListView.separated(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     itemCount: subjects.length,
@@ -59,13 +44,28 @@ Widget _buildList(
     itemBuilder: (context, index) {
       final subject = subjects[index];
 
-      return _SubjectTile(
-        subject: subject,
-        locked: false, // All subjects are now clickable
-        onAttempt: () {
-          // Show question range selection dialog for all subjects
-          _showQuestionRangeDialog(context, subject, userHasPremium);
+      return PremiumAccessHelper.wrapWithAccessControl(
+        context,
+        item: subject,
+        message: subject.isLocked
+            ? 'This subject is locked. Upgrade to premium to access.'
+            : 'This is a premium subject. Upgrade to access.',
+        onUpgrade: () {
+          // TODO: Navigate to premium upgrade screen
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Premium upgrade feature coming soon!'),
+              backgroundColor: AppColors.primary,
+            ),
+          );
         },
+        child: _SubjectTile(
+          subject: subject,
+          onAttempt: () {
+            // Show question range selection dialog for all subjects
+            _showQuestionRangeDialog(context, subject, userHasPremium);
+          },
+        ),
       );
     },
   );
@@ -73,7 +73,7 @@ Widget _buildList(
 
 void _showQuestionRangeDialog(
   BuildContext context,
-  Subject subject,
+  SubjectListResponse subject,
   bool userHasPremium,
 ) {
   // Always show dialog for all subjects
@@ -89,7 +89,7 @@ void _showQuestionRangeDialog(
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => ExamTakingScreen(
-                examId: subject.id,
+                examId: subject.subjectId,
                 questionStartIndex: startIndex,
                 questionEndIndex: endIndex,
               ),
@@ -101,10 +101,268 @@ void _showQuestionRangeDialog(
   );
 }
 
+class QuestionRangeDialog extends StatefulWidget {
+  final SubjectListResponse subject;
+  final bool userHasPremium;
+  final Function(int startIndex, int endIndex) onStartPractice;
+
+  const QuestionRangeDialog({
+    super.key,
+    required this.subject,
+    required this.userHasPremium,
+    required this.onStartPractice,
+  });
+
+  @override
+  State<QuestionRangeDialog> createState() => _QuestionRangeDialogState();
+}
+
+class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
+  late int _startIndex;
+  late int _endIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _startIndex = 1;
+    _endIndex = widget.subject.numberOfQuestions;
+
+    // Ensure initial values are valid
+    if (_startIndex < 1) _startIndex = 1;
+    if (_endIndex < _startIndex) _endIndex = _startIndex;
+    if (_endIndex > widget.subject.numberOfQuestions) {
+      _endIndex = widget.subject.numberOfQuestions;
+    }
+    if (_startIndex > widget.subject.numberOfQuestions) {
+      _startIndex = widget.subject.numberOfQuestions;
+    }
+
+    // Special case: if only 1 question, both start and end should be 1
+    if (widget.subject.numberOfQuestions == 1) {
+      _startIndex = 1;
+      _endIndex = 1;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(
+        children: [
+          Icon(Icons.quiz_outlined, color: AppColors.primary, size: 28),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              '${widget.subject.name}',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Total Questions: ${widget.subject.numberOfQuestions}',
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Select question range to practice:',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 20),
+          // Start Question Slider
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Start Question',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _startIndex.toString(),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (widget.subject.numberOfQuestions > 1)
+                Slider(
+                  value: _startIndex.toDouble(),
+                  min: 1.0,
+                  max: widget.subject.numberOfQuestions.toDouble(),
+                  divisions: widget.subject.numberOfQuestions - 1,
+                  activeColor: AppColors.primary,
+                  inactiveColor: Colors.grey.shade300,
+                  onChanged: (value) {
+                    setState(() {
+                      _startIndex = value.round();
+                      // Ensure start is never greater than end
+                      if (_startIndex > _endIndex) {
+                        _endIndex = _startIndex;
+                      }
+                      // Ensure start is never greater than total questions
+                      if (_startIndex > widget.subject.numberOfQuestions) {
+                        _startIndex = widget.subject.numberOfQuestions;
+                      }
+                      // Ensure start is never less than 1
+                      if (_startIndex < 1) {
+                        _startIndex = 1;
+                      }
+                    });
+                  },
+                )
+              else
+                Container(
+                  height: 40,
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Only 1 question available',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          // End Question Slider
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'End Question',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _endIndex.toString(),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (widget.subject.numberOfQuestions > _startIndex)
+                Slider(
+                  value: _endIndex.toDouble(),
+                  min: _startIndex.toDouble(),
+                  max: widget.subject.numberOfQuestions.toDouble(),
+                  divisions: widget.subject.numberOfQuestions - _startIndex,
+                  activeColor: AppColors.primary,
+                  inactiveColor: Colors.grey.shade300,
+                  onChanged: (value) {
+                    setState(() {
+                      _endIndex = value.round();
+                      // Ensure end is never less than start
+                      if (_endIndex < _startIndex) {
+                        _endIndex = _startIndex;
+                      }
+                      // Ensure end is never greater than total questions
+                      if (_endIndex > widget.subject.numberOfQuestions) {
+                        _endIndex = widget.subject.numberOfQuestions;
+                      }
+                      // Ensure end is never less than 1
+                      if (_endIndex < 1) {
+                        _endIndex = 1;
+                      }
+                    });
+                  },
+                )
+              else
+                Container(
+                  height: 40,
+                  alignment: Alignment.center,
+                  child: Text(
+                    'End question same as start',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: AppColors.primary, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'You will practice questions $_startIndex to $_endIndex (${_endIndex - _startIndex + 1} questions)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            widget.onStartPractice(
+              _startIndex - 1,
+              _endIndex - 1,
+            ); // Convert to 0-based index
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('अभ्यास सुरु गर्नुहोस्'),
+        ),
+      ],
+    );
+  }
+}
+
 class SubjectListScreen extends StatefulWidget {
-  final List<Subject> subjects;
-  final Future<List<Subject>>? futureSubjects;
-  final void Function(Subject subject)? onAttempt;
+  final List<SubjectListResponse> subjects;
+  final Future<List<SubjectListResponse>>? futureSubjects;
+  final void Function(SubjectListResponse subject)? onAttempt;
 
   const SubjectListScreen({
     super.key,
@@ -116,7 +374,7 @@ class SubjectListScreen extends StatefulWidget {
   // Convenience constructor to load from network
   SubjectListScreen.network({super.key, this.onAttempt})
     : subjects = const [],
-      futureSubjects = SubjectService.fetchSubjects();
+      futureSubjects = ApiService.getSubjectsWithAccess();
 
   @override
   State<SubjectListScreen> createState() => _SubjectListScreenState();
@@ -149,14 +407,48 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
 
           return widget.futureSubjects == null
               ? _buildList(context, widget.subjects, userHasPremium)
-              : FutureBuilder<List<Subject>>(
+              : FutureBuilder<List<SubjectListResponse>>(
                   future: widget.futureSubjects,
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            AppColors.primary,
+                          ),
+                        ),
+                      );
                     }
                     if (snapshot.hasError) {
-                      return Center(child: Text('Error: ${snapshot.error}'));
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              size: 64,
+                              color: Colors.grey.shade400,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Error loading subjects',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '${snapshot.error}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey.shade500,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      );
                     }
                     final items = snapshot.data ?? const [];
                     return _buildList(context, items, userHasPremium);
@@ -169,15 +461,10 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
 }
 
 class _SubjectTile extends StatelessWidget {
-  final Subject subject;
-  final bool locked;
-  final VoidCallback onAttempt;
+  final SubjectListResponse subject;
+  final VoidCallback? onAttempt;
 
-  const _SubjectTile({
-    required this.subject,
-    required this.locked,
-    required this.onAttempt,
-  });
+  const _SubjectTile({required this.subject, this.onAttempt});
 
   @override
   Widget build(BuildContext context) {
@@ -203,7 +490,7 @@ class _SubjectTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
-                    _getSubjectIcon(subject.name, subject.isSpecial),
+                    _getSubjectIcon(subject.name, false),
                     color: AppColors.primary,
                     size: 22,
                   ),
@@ -215,10 +502,10 @@ class _SubjectTile extends StatelessWidget {
                     children: [
                       Text(
                         subject.name,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: locked ? Colors.grey.shade600 : Colors.black87,
+                          color: Colors.black87,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -227,12 +514,14 @@ class _SubjectTile extends StatelessWidget {
                           GestureDetector(
                             onTap: () {
                               Clipboard.setData(
-                                ClipboardData(text: subject.id.toUpperCase()),
+                                ClipboardData(
+                                  text: subject.subjectId.toUpperCase(),
+                                ),
                               );
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    '${subject.id.toUpperCase()} copied to clipboard',
+                                    '${subject.subjectId.toUpperCase()} copied to clipboard',
                                   ),
                                   duration: const Duration(seconds: 2),
                                   backgroundColor: AppColors.primary,
@@ -240,7 +529,7 @@ class _SubjectTile extends StatelessWidget {
                               );
                             },
                             child: Text(
-                              subject.id.toUpperCase(),
+                              subject.subjectId.toUpperCase(),
                               style: TextStyle(
                                 fontSize: 11,
                                 color: Colors.grey.shade600,
@@ -249,7 +538,7 @@ class _SubjectTile extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            ' | ${subject.isSpecial ? 'विशिष्टिकृत' : 'संविधान र कानून'}',
+                            ' | संविधान र कानून',
                             style: TextStyle(
                               fontSize: 11,
                               color: Colors.grey.shade600,
@@ -298,12 +587,8 @@ class _SubjectTile extends StatelessWidget {
                 const SizedBox(width: 16),
                 _StatItem(
                   icon: Icons.timer_outlined,
-                  label: '${subject.durationMinutes} मिनेट',
+                  label: '${subject.perQsnDuration} सेकेन्ड प्रति प्रश्न',
                 ),
-                if (subject.hasAttempted) ...[
-                  const SizedBox(width: 16),
-                  _StatItem(icon: Icons.check_circle_outline, label: 'पूरा'),
-                ],
               ],
             ),
 
@@ -313,23 +598,15 @@ class _SubjectTile extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: locked ? null : onAttempt,
-                icon: Icon(
-                  locked ? Icons.lock : Icons.play_arrow_rounded,
-                  size: 18,
-                ),
-                label: Text(
+                onPressed: onAttempt,
+                icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                label: const Text(
                   'अभ्यास गर्नुहोस्',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: locked
-                      ? Colors.grey.shade300
-                      : AppColors.primary,
-                  foregroundColor: locked ? Colors.grey.shade600 : Colors.white,
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -458,7 +735,8 @@ class _StatItem extends StatelessWidget {
   }
 }
 
-// Example usage with mock data:
+// Old demo classes and services removed - now using API integration
+/*
 class DemoSubjectListScreen extends StatelessWidget {
   const DemoSubjectListScreen({super.key});
 
@@ -1035,3 +1313,4 @@ class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
     );
   }
 }
+*/

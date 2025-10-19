@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/network/notes_service.dart';
+import '../../../core/services/api_service.dart';
+import '../../../core/models/api_response_models.dart';
+import '../../../core/helpers/premium_access_helper.dart';
 import 'pdf_viewer_screen.dart';
 
 class _NotesData {
-  final List<NotesTopic> topics;
+  final List<NotesResponse> notes;
   final bool userHasPremium;
-  const _NotesData(this.topics, this.userHasPremium);
+  const _NotesData(this.notes, this.userHasPremium);
 }
 
 class NotesSubjectsScreen extends StatefulWidget {
@@ -24,14 +26,19 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
   @override
   void initState() {
     super.initState();
-    _notesFuture =
-        Future.wait([
-          NotesService.fetchNotesTopics(),
-          NotesService.fetchUserPremium(),
-        ]).then(
-          (results) =>
-              _NotesData(results[0] as List<NotesTopic>, results[1] as bool),
-        );
+    _notesFuture = _loadNotesData();
+  }
+
+  Future<_NotesData> _loadNotesData() async {
+    try {
+      final notes = await ApiService.getNotesWithAccess();
+      // TODO: Get user premium status from PremiumBloc
+      const userHasPremium = false; // Placeholder
+      return _NotesData(notes, userHasPremium);
+    } catch (e) {
+      // Return empty data on error
+      return const _NotesData([], false);
+    }
   }
 
   @override
@@ -68,19 +75,45 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
           }
 
           final data = snapshot.data!;
-          final topics = data.topics;
+          final notes = data.notes;
           final userHasPremium = data.userHasPremium;
+
+          if (notes.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.note_outlined,
+                    size: 64,
+                    color: Colors.grey.shade400,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No notes available',
+                    style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Check back later for new content',
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+                  ),
+                ],
+              ),
+            );
+          }
+
           return ListView.separated(
             padding: const EdgeInsets.all(16),
-            itemCount: topics.length,
+            itemCount: notes.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
-              final topic = topics[index];
-              final isExpanded = _expandedTopics[topic.id] ?? false;
+              final note = notes[index];
+              final isExpanded = _expandedTopics[note.id] ?? false;
 
-              return _buildExpandableTopicCard(
+              return _buildExpandableNoteCard(
                 context,
-                topic,
+                note,
                 isExpanded,
                 userHasPremium,
               );
@@ -91,13 +124,38 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
     );
   }
 
-  Widget _buildExpandableTopicCard(
+  Widget _buildExpandableNoteCard(
     BuildContext context,
-    NotesTopic topic,
+    NotesResponse note,
     bool isExpanded,
     bool userHasPremium,
   ) {
-    final locked = topic.isPremium && !userHasPremium;
+    return PremiumAccessHelper.wrapWithAccessControl(
+      context,
+      item: note,
+      message: note.isLocked
+          ? 'This note is locked. Upgrade to premium to access.'
+          : 'This is a premium note. Upgrade to access.',
+      onUpgrade: () {
+        // TODO: Navigate to premium upgrade screen
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Premium upgrade feature coming soon!'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+      },
+      child: _buildNoteCardContent(context, note, isExpanded, userHasPremium),
+    );
+  }
+
+  Widget _buildNoteCardContent(
+    BuildContext context,
+    NotesResponse note,
+    bool isExpanded,
+    bool userHasPremium,
+  ) {
+    final userHasAccess = PremiumAccessHelper.hasAccessToItem(context, note);
 
     return Card(
       margin: EdgeInsets.zero,
@@ -106,7 +164,7 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: locked
+          color: !userHasAccess
               ? Colors.grey.shade300
               : AppColors.primary.withValues(alpha: 0.1),
           width: 1,
@@ -118,7 +176,7 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
           InkWell(
             onTap: () {
               setState(() {
-                _expandedTopics[topic.id] = !isExpanded;
+                _expandedTopics[note.id] = !isExpanded;
               });
             },
             borderRadius: BorderRadius.circular(12),
@@ -131,16 +189,18 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: locked
+                      color: !userHasAccess
                           ? Colors.grey.shade100
                           : AppColors.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
-                      locked
+                      !userHasAccess
                           ? Icons.lock
-                          : _getSubjectIcon(topic.name, topic.isSpecial),
-                      color: locked ? Colors.grey.shade600 : AppColors.primary,
+                          : _getSubjectIcon(note.name, false),
+                      color: !userHasAccess
+                          ? Colors.grey.shade600
+                          : AppColors.primary,
                       size: 22,
                     ),
                   ),
@@ -152,11 +212,11 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          topic.name,
+                          note.name,
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: locked
+                            color: !userHasAccess
                                 ? Colors.grey.shade600
                                 : Colors.black87,
                           ),
@@ -167,12 +227,12 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
                             GestureDetector(
                               onTap: () {
                                 Clipboard.setData(
-                                  ClipboardData(text: topic.id.toUpperCase()),
+                                  ClipboardData(text: note.id.toUpperCase()),
                                 );
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      '${topic.id.toUpperCase()} copied to clipboard',
+                                      '${note.id.toUpperCase()} copied to clipboard',
                                     ),
                                     duration: const Duration(seconds: 2),
                                     backgroundColor: AppColors.primary,
@@ -180,7 +240,7 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
                                 );
                               },
                               child: Text(
-                                topic.id.toUpperCase(),
+                                note.id.toUpperCase(),
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: Colors.grey.shade600,
@@ -189,7 +249,7 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
                               ),
                             ),
                             Text(
-                              ' | ${topic.isSpecial ? 'विशिष्टिकृत' : 'संविधान र कानून'}',
+                              ' | संविधान र कानून',
                               style: TextStyle(
                                 fontSize: 11,
                                 color: Colors.grey.shade600,
@@ -207,7 +267,7 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              '${topic.pdfCount} ${topic.pdfCount == 1 ? 'PDF' : 'PDFs'}',
+                              '${note.pdfCount} ${note.pdfCount == 1 ? 'PDF' : 'PDFs'}',
                               style: TextStyle(
                                 color: Colors.grey.shade600,
                                 fontSize: 12,
@@ -220,15 +280,15 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: topic.isPremium
+                                color: note.isPremium
                                     ? AppColors.primary.withValues(alpha: 0.1)
                                     : Colors.grey.shade100,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                topic.isPremium ? 'प्रीमियम' : 'निःशुल्क',
+                                note.isPremium ? 'प्रीमियम' : 'निःशुल्क',
                                 style: TextStyle(
-                                  color: topic.isPremium
+                                  color: note.isPremium
                                       ? AppColors.primary
                                       : Colors.grey.shade600,
                                   fontWeight: FontWeight.w500,
@@ -246,7 +306,7 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (topic.isPremium)
+                      if (note.isPremium)
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -257,7 +317,7 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            'रु. ${topic.price.toInt()}',
+                            'रु. ${note.price.toInt()}',
                             style: TextStyle(
                               color: AppColors.primary,
                               fontWeight: FontWeight.w600,
@@ -294,13 +354,13 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
-                      children: topic.pdfs
+                      children: note.pdfs
                           .map(
                             (pdf) => _buildPdfItem(
                               context,
                               pdf,
                               userHasPremium,
-                              topic.name,
+                              note.name,
                             ),
                           )
                           .toList(),
@@ -316,26 +376,45 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
 
   Widget _buildPdfItem(
     BuildContext context,
-    NotesPdf pdf,
+    PDFResponse pdf,
     bool userHasPremium,
-    String topicName,
+    String noteName,
   ) {
-    final locked = pdf.isPremium && !userHasPremium;
+    return PremiumAccessHelper.wrapWithAccessControl(
+      context,
+      item: pdf,
+      message: pdf.isLocked
+          ? 'This PDF is locked. Upgrade to premium to access.'
+          : 'This is a premium PDF. Upgrade to access.',
+      onUpgrade: () {
+        // TODO: Navigate to premium upgrade screen
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Premium upgrade feature coming soon!'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+      },
+      child: _buildPdfItemContent(context, pdf, userHasPremium, noteName),
+    );
+  }
+
+  Widget _buildPdfItemContent(
+    BuildContext context,
+    PDFResponse pdf,
+    bool userHasPremium,
+    String noteName,
+  ) {
+    final userHasAccess = PremiumAccessHelper.hasAccessToItem(context, pdf);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
         onTap: () {
-          if (locked) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('यो PDF प्रीमियम मात्रका लागि हो।')),
-            );
-            return;
-          }
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => PdfViewerScreen(
-                topicName: topicName,
+                topicName: noteName,
                 pdfId: pdf.id,
                 pdfUrl: pdf.downloadUrl,
                 pdfName: pdf.name,
@@ -347,10 +426,10 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: locked ? Colors.grey.shade100 : Colors.white,
+            color: !userHasAccess ? Colors.grey.shade100 : Colors.white,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: locked
+              color: !userHasAccess
                   ? Colors.grey.shade300
                   : AppColors.primary.withValues(alpha: 0.2),
               width: 1,
@@ -363,12 +442,16 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: locked ? Colors.grey.shade200 : Colors.red.shade50,
+                  color: !userHasAccess
+                      ? Colors.grey.shade200
+                      : Colors.red.shade50,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Icon(
                   Icons.picture_as_pdf_outlined,
-                  color: locked ? Colors.grey.shade600 : Colors.red.shade600,
+                  color: !userHasAccess
+                      ? Colors.grey.shade600
+                      : Colors.red.shade600,
                   size: 16,
                 ),
               ),
@@ -384,7 +467,9 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: locked ? Colors.grey.shade600 : Colors.black87,
+                        color: !userHasAccess
+                            ? Colors.grey.shade600
+                            : Colors.black87,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -437,14 +522,14 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: locked
+                  color: !userHasAccess
                       ? Colors.grey.shade200
                       : AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: IconButton(
                   onPressed: () {
-                    if (locked) {
+                    if (!userHasAccess) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('यो PDF प्रीमियम मात्रका लागि हो।'),
@@ -455,7 +540,7 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => PdfViewerScreen(
-                          topicName: topicName,
+                          topicName: noteName,
                           pdfId: pdf.id,
                           pdfUrl: pdf.downloadUrl,
                           pdfName: pdf.name,
@@ -464,13 +549,17 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
                     );
                   },
                   icon: Icon(
-                    locked ? Icons.lock_outline : Icons.visibility_outlined,
+                    !userHasAccess
+                        ? Icons.lock_outline
+                        : Icons.visibility_outlined,
                     size: 16,
-                    color: locked ? Colors.grey.shade600 : AppColors.primary,
+                    color: !userHasAccess
+                        ? Colors.grey.shade600
+                        : AppColors.primary,
                   ),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
-                  tooltip: locked ? 'लक गरिएको' : 'पढ्नुहोस्',
+                  tooltip: !userHasAccess ? 'लक गरिएको' : 'पढ्नुहोस्',
                 ),
               ),
             ],
