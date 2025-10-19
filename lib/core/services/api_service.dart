@@ -440,4 +440,101 @@ class ApiService {
       return [];
     }
   }
+
+  // Get all upcoming exam najirs (Quiz of the Day)
+  static Future<List<UpcomingExamNajirsResponse>> getUpcomingExamNajirs({
+    int limit = 100,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      final uri = Uri.parse(
+        '$baseUrl/api/v1/education/upcoming-exam-najirs',
+      ).replace(queryParameters: {'limit': limit.toString()});
+
+      final response = await http.get(uri, headers: headers);
+
+      print('Get upcoming exam najirs response status: ${response.statusCode}');
+      print('Get upcoming exam najirs response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data
+            .map((item) => UpcomingExamNajirsResponse.fromJson(item))
+            .toList();
+      } else {
+        print(
+          'Get upcoming exam najirs failed: ${response.statusCode} - ${response.body}',
+        );
+        return [];
+      }
+    } catch (e) {
+      print('Get upcoming exam najirs error: $e');
+      return [];
+    }
+  }
+
+  // Get specific upcoming exam najir by ID
+  static Future<UpcomingExamNajirsResponse?> getUpcomingExamNajir(
+    String najirId,
+  ) async {
+    try {
+      final headers = await _getHeaders();
+      final uri = Uri.parse(
+        '$baseUrl/api/v1/education/upcoming-exam-najirs/$najirId',
+      );
+
+      final response = await http.get(uri, headers: headers);
+
+      print('Get upcoming exam najir response status: ${response.statusCode}');
+      print('Get upcoming exam najir response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return UpcomingExamNajirsResponse.fromJson(data);
+      } else {
+        print(
+          'Get upcoming exam najir failed: ${response.statusCode} - ${response.body}',
+        );
+        return null;
+      }
+    } catch (e) {
+      print('Get upcoming exam najir error: $e');
+      return null;
+    }
+  }
+
+  // Search upcoming exam najirs
+  static Future<List<UpcomingExamNajirsResponse>> searchUpcomingExamNajirs({
+    required String query,
+    int limit = 20,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      final uri = Uri.parse(
+        '$baseUrl/api/v1/education/upcoming-exam-najirs/search',
+      ).replace(queryParameters: {'query': query, 'limit': limit.toString()});
+
+      final response = await http.get(uri, headers: headers);
+
+      print(
+        'Search upcoming exam najirs response status: ${response.statusCode}',
+      );
+      print('Search upcoming exam najirs response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data
+            .map((item) => UpcomingExamNajirsResponse.fromJson(item))
+            .toList();
+      } else {
+        print(
+          'Search upcoming exam najirs failed: ${response.statusCode} - ${response.body}',
+        );
+        return [];
+      }
+    } catch (e) {
+      print('Search upcoming exam najirs error: $e');
+      return [];
+    }
+  }
 }

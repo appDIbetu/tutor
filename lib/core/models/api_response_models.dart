@@ -541,3 +541,57 @@ class ExamResultResponse extends Equatable {
     rank,
   ];
 }
+
+// Upcoming Exam Najirs (Quiz of the Day) model
+class UpcomingExamNajirsResponse extends LockableItem {
+  final String id;
+  final String title;
+  final String description;
+  final List<NotesResponse> items;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  const UpcomingExamNajirsResponse({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.items,
+    required bool isPremium,
+    bool isLocked = false,
+    this.createdAt,
+    this.updatedAt,
+  }) : super(isPremium: isPremium, isLocked: isLocked);
+
+  @override
+  List<Object?> get props => [
+    id,
+    title,
+    description,
+    items,
+    isPremium,
+    isLocked,
+    createdAt,
+    updatedAt,
+  ];
+
+  factory UpcomingExamNajirsResponse.fromJson(Map<String, dynamic> json) {
+    return UpcomingExamNajirsResponse(
+      id: json['id'] ?? '',
+      title: json['title'] ?? '',
+      description: json['description'] ?? '',
+      items:
+          (json['items'] as List<dynamic>?)
+              ?.map((item) => NotesResponse.fromJson(item))
+              .toList() ??
+          [],
+      isPremium: json['is_premium'] ?? false,
+      isLocked: json['is_locked'] ?? false,
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'])
+          : null,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.tryParse(json['updated_at'])
+          : null,
+    );
+  }
+}
