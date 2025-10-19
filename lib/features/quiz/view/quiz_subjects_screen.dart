@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/premium/premium_bloc.dart';
-import '../../../core/helpers/premium_access_helper.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/models/api_response_models.dart';
 import '../../notes/view/pdf_viewer_screen.dart';
@@ -179,10 +178,7 @@ class _QuizSubjectsScreenState extends State<QuizSubjectsScreen> {
   ) {
     final bool hasAccess = notes.hasAccess(!topicLocked);
 
-    return PremiumAccessHelper.wrapWithAccessControl(
-      context,
-      item: notes,
-      child: Container(
+    return Container(
         margin: const EdgeInsets.only(bottom: 8),
         child: Column(
           children: [
@@ -190,11 +186,7 @@ class _QuizSubjectsScreenState extends State<QuizSubjectsScreen> {
             InkWell(
               onTap: () {
                 if (!hasAccess) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('यो PDF प्रीमियम मात्रका लागि हो।'),
-                    ),
-                  );
+                  _showUpgradeDialog(context, notes.name);
                   return;
                 }
                 // Navigate to PDF viewer for the first PDF in the notes
@@ -378,8 +370,7 @@ class _QuizSubjectsScreenState extends State<QuizSubjectsScreen> {
               ),
           ],
         ),
-      ),
-    );
+      );
   }
   */
 
@@ -393,160 +384,160 @@ class _QuizSubjectsScreenState extends State<QuizSubjectsScreen> {
     final String itemKey = '${notes.id}_$index';
     final bool isItemExpanded = _expanded[itemKey] ?? false;
 
-    return PremiumAccessHelper.wrapWithAccessControl(
-      context,
-      item: notes,
-      child: Card(
-        margin: EdgeInsets.zero,
-        elevation: 0,
-        color: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(
-            color: !hasAccess
-                ? Colors.grey.shade300
-                : AppColors.primary.withValues(alpha: 0.1),
-            width: 1,
-          ),
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: !hasAccess
+              ? Colors.grey.shade300
+              : AppColors.primary.withValues(alpha: 0.1),
+          width: 1,
         ),
-        child: Column(
-          children: [
-            // Header section
-            InkWell(
-              onTap: () {
-                setState(() {
-                  _expanded[itemKey] = !isItemExpanded;
-                });
-              },
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    // Folder icon container
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: !hasAccess
-                            ? Colors.grey.shade100
-                            : AppColors.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        !hasAccess ? Icons.lock : Icons.quiz_outlined,
-                        color: !hasAccess
-                            ? Colors.grey.shade600
-                            : AppColors.primary,
-                        size: 22,
-                      ),
+      ),
+      child: Column(
+        children: [
+          // Header section
+          InkWell(
+            onTap: () {
+              if (!hasAccess) {
+                _showUpgradeDialog(context, notes.name);
+                return;
+              }
+              setState(() {
+                _expanded[itemKey] = !isItemExpanded;
+              });
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  // Folder icon container
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: !hasAccess
+                          ? Colors.grey.shade100
+                          : AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    const SizedBox(width: 12),
+                    child: Icon(
+                      !hasAccess ? Icons.lock : Icons.quiz_outlined,
+                      color: !hasAccess
+                          ? Colors.grey.shade600
+                          : AppColors.primary,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
 
-                    // Content
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            notes.name,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: !hasAccess
-                                  ? Colors.grey.shade600
-                                  : Colors.black87,
+                  // Content
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          notes.name,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: !hasAccess
+                                ? Colors.grey.shade600
+                                : Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.picture_as_pdf_outlined,
+                              size: 14,
+                              color: Colors.grey.shade600,
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.picture_as_pdf_outlined,
-                                size: 14,
+                            const SizedBox(width: 4),
+                            Text(
+                              '${notes.pdfCount} PDFs',
+                              style: TextStyle(
                                 color: Colors.grey.shade600,
+                                fontSize: 12,
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${notes.pdfCount} PDFs',
+                            ),
+                            const SizedBox(width: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: notes.isPremium
+                                    ? AppColors.primary.withValues(alpha: 0.1)
+                                    : Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                notes.isPremium ? 'प्रीमियम' : 'निःशुल्क',
                                 style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
                                   color: notes.isPremium
-                                      ? AppColors.primary.withValues(alpha: 0.1)
-                                      : Colors.grey.shade100,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  notes.isPremium ? 'प्रीमियम' : 'निःशुल्क',
-                                  style: TextStyle(
-                                    color: notes.isPremium
-                                        ? AppColors.primary
-                                        : Colors.grey.shade600,
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 10,
-                                  ),
+                                      ? AppColors.primary
+                                      : Colors.grey.shade600,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 10,
                                 ),
                               ),
-                            ],
-                          ),
-                        ],
-                      ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
+                  ),
 
-                    // Expand button
-                    Icon(
-                      isItemExpanded ? Icons.expand_less : Icons.expand_more,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
-                  ],
-                ),
+                  // Expand button
+                  Icon(
+                    isItemExpanded ? Icons.expand_less : Icons.expand_more,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                ],
               ),
             ),
+          ),
 
-            // Expanded PDF list
-            if (isItemExpanded && notes.pdfs.isNotEmpty)
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(12),
-                    bottomRight: Radius.circular(12),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Container(height: 1, color: Colors.grey.shade200),
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: notes.pdfs
-                            .map(
-                              (pdf) => _buildPdfItem(
-                                context,
-                                notes.name,
-                                pdf,
-                                !hasAccess,
-                              ),
-                            )
-                            .toList(),
-                      ),
-                    ),
-                  ],
+          // Expanded PDF list
+          if (isItemExpanded && notes.pdfs.isNotEmpty)
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(12),
+                  bottomRight: Radius.circular(12),
                 ),
               ),
-          ],
-        ),
+              child: Column(
+                children: [
+                  Container(height: 1, color: Colors.grey.shade200),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: notes.pdfs
+                          .map(
+                            (pdf) => _buildPdfItem(
+                              context,
+                              notes.name,
+                              pdf,
+                              !hasAccess,
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -559,129 +550,223 @@ class _QuizSubjectsScreenState extends State<QuizSubjectsScreen> {
   ) {
     final bool hasAccess = pdf.hasAccess(!topicLocked);
 
-    return PremiumAccessHelper.wrapWithAccessControl(
-      context,
-      item: pdf,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 4),
-        child: InkWell(
-          onTap: () {
-            if (!hasAccess) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('यो PDF प्रीमियम मात्रका लागि हो।'),
-                ),
-              );
-              return;
-            }
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => PdfViewerScreen(
-                  topicName: topicName,
-                  pdfId: pdf.id,
-                  pdfUrl: pdf.downloadUrl,
-                  pdfName: pdf.name,
-                ),
-              ),
-            );
-          },
-          borderRadius: BorderRadius.circular(6),
-          child: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: !hasAccess ? Colors.grey.shade50 : Colors.white,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: !hasAccess
-                    ? Colors.grey.shade200
-                    : AppColors.primary.withValues(alpha: 0.1),
-                width: 1,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      child: InkWell(
+        onTap: () {
+          if (!hasAccess) {
+            _showUpgradeDialog(context, pdf.name);
+            return;
+          }
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => PdfViewerScreen(
+                topicName: topicName,
+                pdfId: pdf.id,
+                pdfUrl: pdf.downloadUrl,
+                pdfName: pdf.name,
               ),
             ),
-            child: Row(
-              children: [
-                // PDF icon
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: !hasAccess
-                        ? Colors.grey.shade200
-                        : Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Icon(
-                    Icons.picture_as_pdf_outlined,
-                    color: !hasAccess
-                        ? Colors.grey.shade600
-                        : Colors.red.shade600,
-                    size: 12,
-                  ),
-                ),
-                const SizedBox(width: 8),
-
-                // Content
-                Expanded(
-                  child: Text(
-                    pdf.name,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: !hasAccess ? Colors.grey.shade600 : Colors.black87,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-
-                // Action button
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: !hasAccess
-                        ? Colors.grey.shade200
-                        : AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: IconButton(
-                    onPressed: () {
-                      if (!hasAccess) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('यो PDF प्रीमियम मात्रका लागि हो।'),
-                          ),
-                        );
-                        return;
-                      }
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => PdfViewerScreen(
-                            topicName: topicName,
-                            pdfId: pdf.id,
-                            pdfUrl: pdf.downloadUrl,
-                            pdfName: pdf.name,
-                          ),
-                        ),
-                      );
-                    },
-                    icon: Icon(
-                      !hasAccess
-                          ? Icons.lock_outline
-                          : Icons.visibility_outlined,
-                      size: 12,
-                      color: !hasAccess
-                          ? Colors.grey.shade600
-                          : AppColors.primary,
-                    ),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    tooltip: !hasAccess ? 'लक गरिएको' : 'पढ्नुहोस्',
-                  ),
-                ),
-              ],
+          );
+        },
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: !hasAccess ? Colors.grey.shade50 : Colors.white,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: !hasAccess
+                  ? Colors.grey.shade200
+                  : AppColors.primary.withValues(alpha: 0.1),
+              width: 1,
             ),
           ),
+          child: Row(
+            children: [
+              // PDF icon
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: !hasAccess ? Colors.grey.shade200 : Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Icon(
+                  Icons.picture_as_pdf_outlined,
+                  color: !hasAccess
+                      ? Colors.grey.shade600
+                      : Colors.red.shade600,
+                  size: 12,
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // Content
+              Expanded(
+                child: Text(
+                  pdf.name,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: !hasAccess ? Colors.grey.shade600 : Colors.black87,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+
+              // Action button
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: !hasAccess
+                      ? Colors.grey.shade200
+                      : AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: IconButton(
+                  onPressed: () {
+                    if (!hasAccess) {
+                      _showUpgradeDialog(context, pdf.name);
+                      return;
+                    }
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => PdfViewerScreen(
+                          topicName: topicName,
+                          pdfId: pdf.id,
+                          pdfUrl: pdf.downloadUrl,
+                          pdfName: pdf.name,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: Icon(
+                    !hasAccess ? Icons.lock_outline : Icons.visibility_outlined,
+                    size: 12,
+                    color: !hasAccess
+                        ? Colors.grey.shade600
+                        : AppColors.primary,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  tooltip: !hasAccess ? 'लक गरिएको' : 'पढ्नुहोस्',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showUpgradeDialog(BuildContext context, String itemName) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Lock icon
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(32),
+              ),
+              child: Icon(
+                Icons.lock_outline,
+                size: 32,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Title
+            Text(
+              'प्रीमियम अपग्रेड आवश्यक',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade800,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Description
+            Text(
+              '$itemName पहुँच गर्न प्रीमियम सदस्यता आवश्यक छ।',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 24),
+
+            // Upgrade button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('प्रीमियम अपग्रेड सुविधा जल्दै आउँदैछ!'),
+                      backgroundColor: AppColors.primary,
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'प्रीमियम अपग्रेड गर्नुहोस्',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Cancel button
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'रद्द गर्नुहोस्',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
         ),
       ),
     );

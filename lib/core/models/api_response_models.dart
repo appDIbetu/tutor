@@ -669,3 +669,36 @@ class UpcomingExamNajirsResponse extends LockableItem {
     );
   }
 }
+
+class QuestionListResponse {
+  final List<Question> questions;
+  final int totalQuestions;
+  final int startIndex;
+  final int endIndex;
+  final bool hasMore;
+  final String sortOrder;
+
+  const QuestionListResponse({
+    required this.questions,
+    required this.totalQuestions,
+    required this.startIndex,
+    required this.endIndex,
+    required this.hasMore,
+    required this.sortOrder,
+  });
+
+  factory QuestionListResponse.fromJson(Map<String, dynamic> json) {
+    return QuestionListResponse(
+      questions:
+          (json['questions'] as List<dynamic>?)
+              ?.map((q) => Question.fromJson(q))
+              .toList() ??
+          [],
+      totalQuestions: json['total_questions'] ?? 0,
+      startIndex: json['start_index'] ?? 0,
+      endIndex: json['end_index'] ?? 0,
+      hasMore: json['has_more'] ?? false,
+      sortOrder: json['sort_order'] ?? 'latest',
+    );
+  }
+}

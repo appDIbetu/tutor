@@ -13,146 +13,315 @@ class ExamTakingScreen extends StatelessWidget {
   final String examId;
   final int? questionStartIndex;
   final int? questionEndIndex;
+  final bool isSubject; // New parameter to distinguish between subject and exam
 
   const ExamTakingScreen({
     super.key,
     required this.examId,
     this.questionStartIndex,
     this.questionEndIndex,
+    this.isSubject = false, // Default to false for backward compatibility
   });
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<ExamResponse?>(
-      future: ApiService.getExam(examId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        if (snapshot.hasError || snapshot.data == null) {
-          return Scaffold(
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text('Error: ${snapshot.error ?? "Failed to load exam"}'),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Go Back'),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-
-        final examDetails = snapshot.data!;
-
-        // Convert API questions to ExamQuestion format
-        final examQuestions = examDetails.questions
-            .map(
-              (q) => ExamQuestion(
-                id: q.id,
-                questionText: q.questionText,
-                options: q.options,
-                correctAnswerIndex: q.correctAnswerIndex,
-                explanation: q.explanation,
-              ),
-            )
-            .toList();
-
-        // Apply question range filtering if specified
-        List<ExamQuestion> filteredQuestions = examQuestions;
-        if (questionStartIndex != null && questionEndIndex != null) {
-          final startIndex = (questionStartIndex! - 1).clamp(
-            0,
-            examQuestions.length - 1,
-          );
-          final endIndex = (questionEndIndex! - 1).clamp(
-            startIndex,
-            examQuestions.length - 1,
-          );
-          filteredQuestions = examQuestions.sublist(startIndex, endIndex + 1);
-        }
-
-        // Start new exam
-        return BlocProvider(
-          create: (context) => ExamTakingBloc()
-            ..add(
-              ExamStarted(
-                examId: examDetails.examId,
-                durationInSeconds:
-                    examDetails.perQsnDuration * examDetails.numberOfQuestions,
-                questions: filteredQuestions,
-                positiveMark: examDetails.posMarking,
-                negativeMark: examDetails.negMarking,
-              ),
-            ),
-          child: BlocBuilder<ExamTakingBloc, ExamTakingState>(
-            builder: (context, state) {
-              if (state.status == ExamStatus.completed) {
-                return ExamResultScreen(
-                  resultState: state,
-                  examTitle: examDetails.name,
-                  examDetails: examDetails,
-                  showRetakeButton: true,
-                  onRetake: () {
-                    // Reset the exam state and restart
-                    context.read<ExamTakingBloc>().add(
-                      ExamStarted(
-                        examId: examDetails.examId,
-                        durationInSeconds:
-                            examDetails.perQsnDuration *
-                            examDetails.numberOfQuestions,
-                        questions: examDetails.questions
-                            .map(
-                              (q) => ExamQuestion(
-                                id: q.id,
-                                questionText: q.questionText,
-                                options: q.options,
-                                correctAnswerIndex: q.correctAnswerIndex,
-                                explanation: q.explanation,
-                              ),
-                            )
-                            .toList(),
-                        positiveMark: examDetails.posMarking,
-                        negativeMark: examDetails.negMarking,
-                      ),
-                    );
-                  },
-                );
-              }
-
-              if (state.status == ExamStatus.inProgress &&
-                  state.questions.isNotEmpty) {
-                return Scaffold(
-                  appBar: AppBar(
-                    backgroundColor: AppColors.primary,
-                    elevation: 0,
-                    iconTheme: const IconThemeData(color: Colors.white),
-                    title: Text(
-                      examDetails.name,
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ),
-                  body: const _ScrollableQuestionsView(),
-                );
-              }
-
-              return const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              );
-            },
+    if (isSubject) {
+      // Handle subject questions
+      return FutureBuilder<List<dynamic>>(
+        future: Future.wait([
+          ApiService.getSubject(
+            examId,
+          ), // Get subject details for marking values
+          ApiService.getSubjectQuestions(
+            examId, // This is actually subjectId when isSubject is true
+            startIndex:
+                questionStartIndex ??
+                0, // Range selector already converts to 0-based
+            endIndex:
+                questionEndIndex ??
+                99, // Range selector already converts to 0-based
           ),
-        );
-      },
-    );
+        ]),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          if (snapshot.hasError ||
+              snapshot.data == null ||
+              snapshot.data!.length != 2) {
+            return Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Error: ${snapshot.error ?? "Failed to load subject data"}',
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Go Back'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          final subjectDetails = snapshot.data![0] as SubjectResponse?;
+          final questionsData = snapshot.data![1] as QuestionListResponse?;
+
+          if (subjectDetails == null || questionsData == null) {
+            return Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Error: Failed to load subject data'),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Go Back'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // Convert API questions to ExamQuestion format
+          final examQuestions = questionsData.questions
+              .map(
+                (q) => ExamQuestion(
+                  id: q.id,
+                  questionText: q.questionText,
+                  options: q.options,
+                  correctAnswerIndex: q.correctAnswerIndex,
+                  explanation: q.explanation,
+                ),
+              )
+              .toList();
+
+          // Start new exam with subject questions using actual subject marking values
+          return BlocProvider(
+            create: (context) => ExamTakingBloc()
+              ..add(
+                ExamStarted(
+                  examId: examId, // subjectId
+                  durationInSeconds:
+                      subjectDetails.perQsnDuration *
+                      examQuestions.length, // Use actual per question duration
+                  questions: examQuestions,
+                  positiveMark:
+                      subjectDetails.posMarking, // Use actual positive marking
+                  negativeMark:
+                      subjectDetails.negMarking, // Use actual negative marking
+                ),
+              ),
+            child: BlocBuilder<ExamTakingBloc, ExamTakingState>(
+              builder: (context, state) {
+                if (state.status == ExamStatus.completed) {
+                  return ExamResultScreen(
+                    resultState: state,
+                    examTitle: subjectDetails.name, // Use actual subject name
+                    examDetails: null, // No exam details for subject practice
+                    subjectDetails:
+                        subjectDetails, // Pass subject details for marking values
+                    showRetakeButton: true,
+                    onRetake: () {
+                      // Reset the exam state and restart
+                      context.read<ExamTakingBloc>().add(
+                        ExamStarted(
+                          examId: examId,
+                          durationInSeconds:
+                              subjectDetails.perQsnDuration *
+                              examQuestions.length,
+                          questions: examQuestions,
+                          positiveMark: subjectDetails.posMarking,
+                          negativeMark: subjectDetails.negMarking,
+                        ),
+                      );
+                    },
+                  );
+                }
+
+                if (state.status == ExamStatus.inProgress &&
+                    state.questions.isNotEmpty) {
+                  return Scaffold(
+                    appBar: AppBar(
+                      backgroundColor: AppColors.primary,
+                      elevation: 0,
+                      iconTheme: const IconThemeData(color: Colors.white),
+                      title: const Text(
+                        "Subject Practice",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    body: const _ScrollableQuestionsView(),
+                  );
+                }
+
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              },
+            ),
+          );
+        },
+      );
+    } else {
+      // Handle exam questions (original logic)
+      return FutureBuilder<ExamResponse?>(
+        future: ApiService.getExam(examId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          if (snapshot.hasError || snapshot.data == null) {
+            return Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red,
+                    ),
+                    const SizedBox(height: 16),
+                    Text('Error: ${snapshot.error ?? "Failed to load exam"}'),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Go Back'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          final examDetails = snapshot.data!;
+
+          // Convert API questions to ExamQuestion format
+          final examQuestions = examDetails.questions
+              .map(
+                (q) => ExamQuestion(
+                  id: q.id,
+                  questionText: q.questionText,
+                  options: q.options,
+                  correctAnswerIndex: q.correctAnswerIndex,
+                  explanation: q.explanation,
+                ),
+              )
+              .toList();
+
+          // Apply question range filtering if specified
+          List<ExamQuestion> filteredQuestions = examQuestions;
+          if (questionStartIndex != null && questionEndIndex != null) {
+            final startIndex = (questionStartIndex! - 1).clamp(
+              0,
+              examQuestions.length - 1,
+            );
+            final endIndex = (questionEndIndex! - 1).clamp(
+              startIndex,
+              examQuestions.length - 1,
+            );
+            filteredQuestions = examQuestions.sublist(startIndex, endIndex + 1);
+          }
+
+          // Start new exam
+          return BlocProvider(
+            create: (context) => ExamTakingBloc()
+              ..add(
+                ExamStarted(
+                  examId: examDetails.examId,
+                  durationInSeconds:
+                      examDetails.perQsnDuration *
+                      examDetails.numberOfQuestions,
+                  questions: filteredQuestions,
+                  positiveMark: examDetails.posMarking,
+                  negativeMark: examDetails.negMarking,
+                ),
+              ),
+            child: BlocBuilder<ExamTakingBloc, ExamTakingState>(
+              builder: (context, state) {
+                if (state.status == ExamStatus.completed) {
+                  return ExamResultScreen(
+                    resultState: state,
+                    examTitle: examDetails.name,
+                    examDetails: examDetails,
+                    showRetakeButton: true,
+                    onRetake: () {
+                      // Reset the exam state and restart
+                      context.read<ExamTakingBloc>().add(
+                        ExamStarted(
+                          examId: examDetails.examId,
+                          durationInSeconds:
+                              examDetails.perQsnDuration *
+                              examDetails.numberOfQuestions,
+                          questions: examDetails.questions
+                              .map(
+                                (q) => ExamQuestion(
+                                  id: q.id,
+                                  questionText: q.questionText,
+                                  options: q.options,
+                                  correctAnswerIndex: q.correctAnswerIndex,
+                                  explanation: q.explanation,
+                                ),
+                              )
+                              .toList(),
+                          positiveMark: examDetails.posMarking,
+                          negativeMark: examDetails.negMarking,
+                        ),
+                      );
+                    },
+                  );
+                }
+
+                if (state.status == ExamStatus.inProgress &&
+                    state.questions.isNotEmpty) {
+                  return Scaffold(
+                    appBar: AppBar(
+                      backgroundColor: AppColors.primary,
+                      elevation: 0,
+                      iconTheme: const IconThemeData(color: Colors.white),
+                      title: Text(
+                        examDetails.name,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    body: const _ScrollableQuestionsView(),
+                  );
+                }
+
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              },
+            ),
+          );
+        },
+      );
+    }
   }
 
   // Convert ExamAttempt to ExamTakingState for result screen

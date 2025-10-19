@@ -44,29 +44,17 @@ Widget _buildList(
     itemBuilder: (context, index) {
       final subject = subjects[index];
 
-      return PremiumAccessHelper.wrapWithAccessControl(
-        context,
-        item: subject,
-        message: subject.isLocked
-            ? 'This subject is locked. Upgrade to premium to access.'
-            : 'This is a premium subject. Upgrade to access.',
-        onUpgrade: () {
-          // TODO: Navigate to premium upgrade screen
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Premium upgrade feature coming soon!'),
-              backgroundColor: AppColors.primary,
-            ),
-          );
+      return _SubjectTile(
+        subject: subject,
+        onAttempt: () {
+          if (subject.isLocked) {
+            _showUpgradeDialog(context, subject.name);
+            return;
+          }
+          // Show question range selection dialog for unlocked subjects
+          _showQuestionRangeDialog(context, subject, userHasPremium);
         },
-        child: _SubjectTile(
-          subject: subject,
-          onAttempt: () {
-            // Show question range selection dialog for all subjects
-            _showQuestionRangeDialog(context, subject, userHasPremium);
-          },
-          formatDuration: formatDuration,
-        ),
+        formatDuration: formatDuration,
       );
     },
   );
@@ -93,6 +81,7 @@ void _showQuestionRangeDialog(
                 examId: subject.subjectId,
                 questionStartIndex: startIndex,
                 questionEndIndex: endIndex,
+                isSubject: true, // This is a subject, not an exam
               ),
             ),
           );
@@ -483,6 +472,112 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
   }
 }
 
+void _showUpgradeDialog(BuildContext context, String subjectName) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) => Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle bar
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Lock icon
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(32),
+            ),
+            child: Icon(Icons.lock_outline, size: 32, color: AppColors.primary),
+          ),
+          const SizedBox(height: 16),
+
+          // Title
+          Text(
+            'प्रीमियम अपग्रेड आवश्यक',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade800,
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Description
+          Text(
+            '$subjectName पहुँच गर्न प्रीमियम सदस्यता आवश्यक छ।',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 24),
+
+          // Upgrade button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('प्रीमियम अपग्रेड सुविधा जल्दै आउँदैछ!'),
+                    backgroundColor: AppColors.primary,
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'प्रीमियम अपग्रेड गर्नुहोस्',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Cancel button
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'रद्द गर्नुहोस्',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    ),
+  );
+}
+
 class _SubjectTile extends StatelessWidget {
   final SubjectListResponse subject;
   final VoidCallback? onAttempt;
@@ -629,10 +724,18 @@ class _SubjectTile extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: onAttempt,
-                icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                label: const Text(
-                  'अभ्यास गर्नुहोस्',
-                  style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                icon: Icon(
+                  subject.isLocked
+                      ? Icons.lock_outline
+                      : Icons.play_arrow_rounded,
+                  size: 18,
+                ),
+                label: Text(
+                  subject.isLocked ? 'प्रीमियम लिनुहोस्' : 'अभ्यास गर्नुहोस्',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                  ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
@@ -1181,13 +1284,15 @@ class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
   void initState() {
     super.initState();
     final totalQuestions = widget.subject.numberOfQuestions;
-    // Premium subjects: max 20 questions or actual count (whichever is smaller)
-    // Free subjects: actual question count (no restriction)
-    final maxAllowed = widget.subject.isPremium
-        ? (totalQuestions < _maxQuestionsForPremium
-              ? totalQuestions
-              : _maxQuestionsForPremium)
-        : totalQuestions;
+    
+    // Check if subject is locked from API
+    final isSubjectLocked = widget.subject.isLocked;
+    
+    // If subject is locked: only first 5 questions can be practiced
+    // If subject is unlocked: all questions can be practiced
+    final maxAllowed = isSubjectLocked
+        ? (totalQuestions < 5 ? totalQuestions : 5) // Max 5 questions for locked subjects
+        : totalQuestions; // All questions for unlocked subjects
 
     _startIndex = 1;
     _endIndex = maxAllowed > 10 ? 10 : maxAllowed;
@@ -1201,13 +1306,15 @@ class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
   @override
   Widget build(BuildContext context) {
     final totalQuestions = widget.subject.numberOfQuestions;
-    // Premium subjects: max 20 questions or actual count (whichever is smaller)
-    // Free subjects: actual question count (no restriction)
-    final maxAllowed = widget.subject.isPremium
-        ? (totalQuestions < _maxQuestionsForPremium
-              ? totalQuestions
-              : _maxQuestionsForPremium)
-        : totalQuestions;
+    
+    // Check if subject is locked from API
+    final isSubjectLocked = widget.subject.isLocked;
+    
+    // If subject is locked: only first 5 questions can be practiced
+    // If subject is unlocked: all questions can be practiced
+    final maxAllowed = isSubjectLocked
+        ? (totalQuestions < 5 ? totalQuestions : 5) // Max 5 questions for locked subjects
+        : totalQuestions; // All questions for unlocked subjects
 
     return AlertDialog(
       title: Text('प्रश्नको दायरा छान्नुहोस्'),
@@ -1220,12 +1327,12 @@ class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
           ),
           const SizedBox(height: 8),
           Text(
-            widget.subject.isPremium
-                ? 'प्रीमियम विषय: अधिकतम ${maxAllowed} प्रश्न छान्न सकिन्छ'
-                : 'निशुल्क विषय: सबै ${maxAllowed} प्रश्न छान्न सकिन्छ',
+            isSubjectLocked
+                ? 'लक गरिएको विषय: केवल पहिलो ${maxAllowed} प्रश्न अभ्यास गर्न सकिन्छ'
+                : 'खुला विषय: सबै ${maxAllowed} प्रश्न अभ्यास गर्न सकिन्छ',
             style: TextStyle(
               fontSize: 12,
-              color: widget.subject.isPremium
+              color: isSubjectLocked
                   ? Colors.orange.shade700
                   : Colors.green.shade700,
               fontWeight: FontWeight.w500,
@@ -1311,7 +1418,9 @@ class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'अधिकतम $maxAllowed प्रश्न मात्र अभ्यास गर्न सकिन्छ।',
+                      isSubjectLocked
+                          ? 'यो विषय लक गरिएको छ। केवल पहिलो $maxAllowed प्रश्न मात्र अभ्यास गर्न सकिन्छ।'
+                          : 'अधिकतम $maxAllowed प्रश्न मात्र अभ्यास गर्न सकिन्छ।',
                       style: TextStyle(
                         color: Colors.orange.shade700,
                         fontSize: 12,

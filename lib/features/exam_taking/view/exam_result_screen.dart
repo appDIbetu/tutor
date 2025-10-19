@@ -16,6 +16,8 @@ class ExamResultScreen extends StatefulWidget {
   final bool showRetakeButton;
   final VoidCallback? onRetake;
   final ExamResponse? examDetails;
+  final SubjectResponse?
+  subjectDetails; // Add subject details for subject practice
   final List<ExamQuestion>? questions;
 
   const ExamResultScreen({
@@ -25,6 +27,7 @@ class ExamResultScreen extends StatefulWidget {
     this.showRetakeButton = false,
     this.onRetake,
     this.examDetails,
+    this.subjectDetails, // Add subject details parameter
     this.questions,
   });
 
@@ -84,8 +87,16 @@ class _ExamResultScreenState extends State<ExamResultScreen> {
       } else {
         // Fallback if no exam details available
         examDate = DateFormat('MMM dd, yyyy').format(DateTime.now());
-        positiveMark = 1.0;
-        negativeMark = 0.25;
+
+        // Use subject details if available (for subject practice)
+        if (widget.subjectDetails != null) {
+          positiveMark = widget.subjectDetails!.posMarking;
+          negativeMark = widget.subjectDetails!.negMarking;
+        } else {
+          // Default fallback values
+          positiveMark = 1.0;
+          negativeMark = 0.25;
+        }
       }
     });
   }
@@ -467,175 +478,165 @@ class _ExamResultScreenState extends State<ExamResultScreen> {
           ),
           const SizedBox(height: 16),
           // Use ListView.builder for better performance with many questions
-          SizedBox(
-            height:
-                questionsList.length *
-                180.0, // More accurate height per question
-            child: ListView.builder(
-              physics:
-                  const NeverScrollableScrollPhysics(), // Disable internal scrolling
-              itemCount: questionsList.length,
-              itemBuilder: (context, index) {
-                final question = questionsList[index];
-                final selectedAnswerIndex =
-                    widget.resultState.selectedAnswers[index];
+          ListView.builder(
+            shrinkWrap: true, // Allow ListView to size itself
+            physics:
+                const NeverScrollableScrollPhysics(), // Disable internal scrolling
+            itemCount: questionsList.length,
+            itemBuilder: (context, index) {
+              final question = questionsList[index];
+              final selectedAnswerIndex =
+                  widget.resultState.selectedAnswers[index];
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Question number badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.help_outline,
-                              size: 12,
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Question number badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.help_outline,
+                            size: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            'Q.no.${index + 1}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              fontSize: 10,
                               color: Colors.grey.shade600,
                             ),
-                            const SizedBox(width: 3),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Question Card (improved but simpler)
+                    Card(
+                      elevation: 1,
+                      margin: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Question text at the top
                             Text(
-                              'Q.no.${index + 1}',
-                              style: TextStyle(
+                              question.questionText,
+                              style: const TextStyle(
+                                fontSize: 16,
                                 fontWeight: FontWeight.w500,
-                                fontSize: 10,
-                                color: Colors.grey.shade600,
                               ),
                             ),
+                            const SizedBox(height: 16),
+                            // Options below the question (simplified and cleaner)
+                            ...List.generate(question.options.length, (
+                              optIndex,
+                            ) {
+                              final optionText = question.options[optIndex];
+                              final isSelected =
+                                  selectedAnswerIndex == optIndex;
+                              final isCorrectAnswer =
+                                  optIndex == question.correctAnswerIndex;
+
+                              Color? tileColor;
+                              Color? textColor;
+                              IconData? icon;
+
+                              if (isCorrectAnswer) {
+                                tileColor = Colors.green.withValues(
+                                  alpha: 0.15,
+                                );
+                                textColor = Colors.green.shade800;
+                                icon = Icons.check_circle;
+                              } else if (isSelected && !isCorrectAnswer) {
+                                tileColor = Colors.red.withValues(alpha: 0.15);
+                                textColor = Colors.red.shade800;
+                                icon = Icons.cancel;
+                              } else {
+                                tileColor = Colors.grey.withValues(alpha: 0.1);
+                                textColor = Colors.black87;
+                                icon = null;
+                              }
+
+                              return Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.symmetric(vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                  horizontal: 16,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: tileColor,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isCorrectAnswer
+                                        ? Colors.green.shade300
+                                        : isSelected
+                                        ? Colors.red.shade300
+                                        : Colors.grey.shade300,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    if (icon != null) ...[
+                                      Icon(icon, size: 20, color: textColor),
+                                      const SizedBox(width: 12),
+                                    ],
+                                    Expanded(
+                                      child: Text(
+                                        optionText,
+                                        style: TextStyle(
+                                          color: textColor,
+                                          fontWeight:
+                                              isSelected || isCorrectAnswer
+                                              ? FontWeight.w600
+                                              : FontWeight.normal,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                            // This part for 'explanation' will work if your model has it
+                            if (question.explanation != null &&
+                                question.explanation!.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Explanation',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(question.explanation!),
+                            ],
                           ],
                         ),
                       ),
-                      const SizedBox(height: 12),
-
-                      // Question Card (improved but simpler)
-                      Card(
-                        elevation: 1,
-                        margin: EdgeInsets.zero,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Question text at the top
-                              Text(
-                                question.questionText,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              // Options below the question (simplified and cleaner)
-                              ...List.generate(question.options.length, (
-                                optIndex,
-                              ) {
-                                final optionText = question.options[optIndex];
-                                final isSelected =
-                                    selectedAnswerIndex == optIndex;
-                                final isCorrectAnswer =
-                                    optIndex == question.correctAnswerIndex;
-
-                                Color? tileColor;
-                                Color? textColor;
-                                IconData? icon;
-
-                                if (isCorrectAnswer) {
-                                  tileColor = Colors.green.withValues(
-                                    alpha: 0.15,
-                                  );
-                                  textColor = Colors.green.shade800;
-                                  icon = Icons.check_circle;
-                                } else if (isSelected && !isCorrectAnswer) {
-                                  tileColor = Colors.red.withValues(
-                                    alpha: 0.15,
-                                  );
-                                  textColor = Colors.red.shade800;
-                                  icon = Icons.cancel;
-                                } else {
-                                  tileColor = Colors.grey.withValues(
-                                    alpha: 0.1,
-                                  );
-                                  textColor = Colors.black87;
-                                  icon = null;
-                                }
-
-                                return Container(
-                                  width: double.infinity,
-                                  margin: const EdgeInsets.symmetric(
-                                    vertical: 4,
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                    horizontal: 16,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: tileColor,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: isCorrectAnswer
-                                          ? Colors.green.shade300
-                                          : isSelected
-                                          ? Colors.red.shade300
-                                          : Colors.grey.shade300,
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      if (icon != null) ...[
-                                        Icon(icon, size: 20, color: textColor),
-                                        const SizedBox(width: 12),
-                                      ],
-                                      Expanded(
-                                        child: Text(
-                                          optionText,
-                                          style: TextStyle(
-                                            color: textColor,
-                                            fontWeight:
-                                                isSelected || isCorrectAnswer
-                                                ? FontWeight.w600
-                                                : FontWeight.normal,
-                                            fontSize: 15,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }),
-                              // This part for 'explanation' will work if your model has it
-                              if (question.explanation != null &&
-                                  question.explanation!.isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                const Text(
-                                  'Explanation',
-                                  style: TextStyle(fontWeight: FontWeight.w600),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(question.explanation!),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ],
       ),

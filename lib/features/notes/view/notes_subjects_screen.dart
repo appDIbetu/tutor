@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/models/api_response_models.dart';
-import '../../../core/helpers/premium_access_helper.dart';
 import '../../../core/premium/premium_bloc.dart';
 import 'pdf_viewer_screen.dart';
 
@@ -139,23 +138,7 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
     bool isExpanded,
     bool userHasPremium,
   ) {
-    return PremiumAccessHelper.wrapWithAccessControl(
-      context,
-      item: note,
-      message: note.isLocked
-          ? 'This note is locked. Upgrade to premium to access.'
-          : 'This is a premium note. Upgrade to access.',
-      onUpgrade: () {
-        // TODO: Navigate to premium upgrade screen
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Premium upgrade feature coming soon!'),
-            backgroundColor: AppColors.primary,
-          ),
-        );
-      },
-      child: _buildNoteCardContent(context, note, isExpanded),
-    );
+    return _buildNoteCardContent(context, note, isExpanded);
   }
 
   Widget _buildNoteCardContent(
@@ -188,6 +171,10 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
                   // Header section
                   InkWell(
                     onTap: () {
+                      if (isLocked) {
+                        _showUpgradeDialog(context, note.name);
+                        return;
+                      }
                       setState(() {
                         _expandedTopics[note.id] = !isExpanded;
                       });
@@ -208,12 +195,8 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Icon(
-                              isLocked
-                                  ? Icons.lock
-                                  : _getSubjectIcon(note.name, false),
-                              color: isLocked
-                                  ? Colors.grey.shade600
-                                  : AppColors.primary,
+                              _getSubjectIcon(note.name, false),
+                              color: AppColors.primary,
                               size: 22,
                             ),
                           ),
@@ -428,23 +411,7 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
   }
 
   Widget _buildPdfItem(BuildContext context, PDFResponse pdf, String noteName) {
-    return PremiumAccessHelper.wrapWithAccessControl(
-      context,
-      item: pdf,
-      message: pdf.isLocked
-          ? 'This PDF is locked. Upgrade to premium to access.'
-          : 'This is a premium PDF. Upgrade to access.',
-      onUpgrade: () {
-        // TODO: Navigate to premium upgrade screen
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Premium upgrade feature coming soon!'),
-            backgroundColor: AppColors.primary,
-          ),
-        );
-      },
-      child: _buildPdfItemContent(context, pdf, noteName),
-    );
+    return _buildPdfItemContent(context, pdf, noteName);
   }
 
   Widget _buildPdfItemContent(
@@ -461,6 +428,10 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
           margin: const EdgeInsets.only(bottom: 8),
           child: InkWell(
             onTap: () {
+              if (isLocked) {
+                _showUpgradeDialog(context, pdf.name);
+                return;
+              }
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (context) => PdfViewerScreen(
@@ -580,11 +551,7 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
                     child: IconButton(
                       onPressed: () {
                         if (isLocked) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('यो PDF लक गरिएको छ।'),
-                            ),
-                          );
+                          _showUpgradeDialog(context, pdf.name);
                           return;
                         }
                         Navigator.of(context).push(
@@ -618,6 +585,116 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
           ),
         );
       },
+    );
+  }
+
+  void _showUpgradeDialog(BuildContext context, String itemName) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Lock icon
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(32),
+              ),
+              child: Icon(
+                Icons.lock_outline,
+                size: 32,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Title
+            Text(
+              'प्रीमियम अपग्रेड आवश्यक',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade800,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Description
+            Text(
+              '$itemName पहुँच गर्न प्रीमियम सदस्यता आवश्यक छ।',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 24),
+
+            // Upgrade button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('प्रीमियम अपग्रेड सुविधा जल्दै आउँदैछ!'),
+                      backgroundColor: AppColors.primary,
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'प्रीमियम अपग्रेड गर्नुहोस्',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Cancel button
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'रद्द गर्नुहोस्',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
     );
   }
 

@@ -24,19 +24,16 @@ class ApiService {
   static Future<Map<String, dynamic>?> get(String endpoint) async {
     try {
       final headers = await _getHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl$endpoint'),
-        headers: headers,
-      );
+      final url = '$baseUrl$endpoint';
+
+      final response = await http.get(Uri.parse(url), headers: headers);
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        print('GET request failed: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      print('GET request error: $e');
       return null;
     }
   }
@@ -48,20 +45,31 @@ class ApiService {
   ) async {
     try {
       final headers = await _getHeaders();
+      final url = '$baseUrl$endpoint';
+      final body = json.encode(data);
+
+      print('🌐 POST Request: $url');
+      print('📋 Headers: $headers');
+      print('📦 Request Body: $body');
+
       final response = await http.post(
-        Uri.parse('$baseUrl$endpoint'),
+        Uri.parse(url),
         headers: headers,
-        body: json.encode(data),
+        body: body,
       );
+
+      print('📊 Response Status: ${response.statusCode}');
+      print('📄 Response Body: ${response.body}');
+      print('📋 Response Headers: ${response.headers}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         return json.decode(response.body);
       } else {
-        print('POST request failed: ${response.statusCode}');
+        print('❌ POST request failed: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      print('POST request error: $e');
+      print('💥 POST request error: $e');
       return null;
     }
   }
@@ -321,10 +329,14 @@ class ApiService {
         '$baseUrl/api/v1/education/subjects',
       ).replace(queryParameters: queryParams);
 
+      print('🌐 GET Subjects Request: $uri');
+      print('📋 Headers: $headers');
+
       final response = await http.get(uri, headers: headers);
 
-      print('Get subjects response status: ${response.statusCode}');
-      print('Get subjects response body: ${response.body}');
+      print('📊 Get subjects response status: ${response.statusCode}');
+      print('📄 Get subjects response body: ${response.body}');
+      print('📋 Response Headers: ${response.headers}');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -360,6 +372,49 @@ class ApiService {
       }
     } catch (e) {
       print('Get subject error: $e');
+      return null;
+    }
+  }
+
+  // Get subject questions with pagination (for practice)
+  static Future<QuestionListResponse?> getSubjectQuestions(
+    String subjectId, {
+    int startIndex = 0,
+    int endIndex = 100,
+    String sortOrder = 'latest',
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      final url =
+          Uri.parse(
+            '$baseUrl/api/v1/education/subjects/$subjectId/questions',
+          ).replace(
+            queryParameters: {
+              'start_index': startIndex.toString(),
+              'end_index': endIndex.toString(),
+              'sort_order': sortOrder,
+            },
+          );
+
+      print('🌐 GET Subject Questions: $url');
+      print('📋 Headers: $headers');
+
+      final response = await http.get(url, headers: headers);
+
+      print('📊 Response Status: ${response.statusCode}');
+      print('📄 Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return QuestionListResponse.fromJson(data);
+      } else {
+        print(
+          '❌ Get subject questions failed: ${response.statusCode} - ${response.body}',
+        );
+        return null;
+      }
+    } catch (e) {
+      print('💥 Get subject questions error: $e');
       return null;
     }
   }
@@ -441,10 +496,14 @@ class ApiService {
         '$baseUrl/api/v1/education/notes',
       ).replace(queryParameters: queryParams);
 
+      print('🌐 GET Notes Request: $uri');
+      print('📋 Headers: $headers');
+
       final response = await http.get(uri, headers: headers);
 
-      print('Get notes response status: ${response.statusCode}');
-      print('Get notes response body: ${response.body}');
+      print('📊 Get notes response status: ${response.statusCode}');
+      print('📄 Get notes response body: ${response.body}');
+      print('📋 Response Headers: ${response.headers}');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
