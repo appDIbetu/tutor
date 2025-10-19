@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/models/api_response_models.dart';
 import '../../../core/helpers/premium_access_helper.dart';
+import '../../../core/premium/premium_bloc.dart';
 import 'pdf_viewer_screen.dart';
 
 class _NotesData {
@@ -27,13 +29,20 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
   void initState() {
     super.initState();
     _notesFuture = _loadNotesData();
+
+    // Request premium status if not already loaded
+    final premiumState = context.read<PremiumBloc>().state;
+    if (premiumState is PremiumInitial) {
+      context.read<PremiumBloc>().add(PremiumStatusRequested());
+    }
   }
 
   Future<_NotesData> _loadNotesData() async {
     try {
       final notes = await ApiService.getNotesWithAccess();
-      // TODO: Get user premium status from PremiumBloc
-      const userHasPremium = false; // Placeholder
+      // Get user premium status from PremiumBloc
+      final premiumState = context.read<PremiumBloc>().state;
+      final userHasPremium = premiumState is PremiumActive;
       return _NotesData(notes, userHasPremium);
     } catch (e) {
       // Return empty data on error
@@ -145,7 +154,7 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
           ),
         );
       },
-      child: _buildNoteCardContent(context, note, isExpanded, userHasPremium),
+      child: _buildNoteCardContent(context, note, isExpanded),
     );
   }
 
@@ -153,233 +162,272 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
     BuildContext context,
     NotesResponse note,
     bool isExpanded,
-    bool userHasPremium,
   ) {
-    final userHasAccess = PremiumAccessHelper.hasAccessToItem(context, note);
+    return BlocBuilder<PremiumBloc, PremiumState>(
+      builder: (context, state) {
+        // Use the is_locked field directly from API instead of checking premium status
+        final isLocked = note.isLocked;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: !userHasAccess
-              ? Colors.grey.shade300
-              : AppColors.primary.withValues(alpha: 0.1),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          // Header section
-          InkWell(
-            onTap: () {
-              setState(() {
-                _expandedTopics[note.id] = !isExpanded;
-              });
-            },
+        return Card(
+          margin: EdgeInsets.zero,
+          elevation: 0,
+          color: Colors.white,
+          shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  // Icon container
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: !userHasAccess
-                          ? Colors.grey.shade100
-                          : AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      !userHasAccess
-                          ? Icons.lock
-                          : _getSubjectIcon(note.name, false),
-                      color: !userHasAccess
-                          ? Colors.grey.shade600
-                          : AppColors.primary,
-                      size: 22,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-
-                  // Content
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          note.name,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: !userHasAccess
-                                ? Colors.grey.shade600
-                                : Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            GestureDetector(
-                              onTap: () {
-                                Clipboard.setData(
-                                  ClipboardData(text: note.id.toUpperCase()),
-                                );
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      '${note.id.toUpperCase()} copied to clipboard',
-                                    ),
-                                    duration: const Duration(seconds: 2),
-                                    backgroundColor: AppColors.primary,
-                                  ),
-                                );
-                              },
-                              child: Text(
-                                note.id.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey.shade600,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              ' | संविधान र कानून',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.picture_as_pdf_outlined,
-                              size: 14,
-                              color: Colors.grey.shade600,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${note.pdfCount} ${note.pdfCount == 1 ? 'PDF' : 'PDFs'}',
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: note.isPremium
-                                    ? AppColors.primary.withValues(alpha: 0.1)
-                                    : Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                note.isPremium ? 'प्रीमियम' : 'निःशुल्क',
-                                style: TextStyle(
-                                  color: note.isPremium
-                                      ? AppColors.primary
-                                      : Colors.grey.shade600,
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Price and expand button
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (note.isPremium)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            'रु. ${note.price.toInt()}',
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        isExpanded ? Icons.expand_less : Icons.expand_more,
-                        color: AppColors.primary,
-                        size: 20,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+            side: BorderSide(
+              color: isLocked
+                  ? Colors.grey.shade300
+                  : AppColors.primary.withValues(alpha: 0.1),
+              width: 1,
             ),
           ),
-
-          // Expanded PDF list
-          if (isExpanded)
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(12),
-                  bottomRight: Radius.circular(12),
-                ),
-              ),
-              child: Column(
+          child: Stack(
+            children: [
+              Column(
                 children: [
-                  Container(height: 1, color: Colors.grey.shade200),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: note.pdfs
-                          .map(
-                            (pdf) => _buildPdfItem(
-                              context,
-                              pdf,
-                              userHasPremium,
-                              note.name,
+                  // Header section
+                  InkWell(
+                    onTap: () {
+                      setState(() {
+                        _expandedTopics[note.id] = !isExpanded;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          // Icon container
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: isLocked
+                                  ? Colors.grey.shade100
+                                  : AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                          )
-                          .toList(),
+                            child: Icon(
+                              isLocked
+                                  ? Icons.lock
+                                  : _getSubjectIcon(note.name, false),
+                              color: isLocked
+                                  ? Colors.grey.shade600
+                                  : AppColors.primary,
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+
+                          // Content
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  note.name,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: isLocked
+                                        ? Colors.grey.shade600
+                                        : Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () {
+                                        Clipboard.setData(
+                                          ClipboardData(
+                                            text: note.id.toUpperCase(),
+                                          ),
+                                        );
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              '${note.id.toUpperCase()} copied to clipboard',
+                                            ),
+                                            duration: const Duration(
+                                              seconds: 2,
+                                            ),
+                                            backgroundColor: AppColors.primary,
+                                          ),
+                                        );
+                                      },
+                                      child: Text(
+                                        note.id.toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey.shade600,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      ' | संविधान र कानून',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.picture_as_pdf_outlined,
+                                      size: 14,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${note.pdfCount} ${note.pdfCount == 1 ? 'PDF' : 'PDFs'}',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: note.isPremium
+                                            ? AppColors.primary.withValues(
+                                                alpha: 0.1,
+                                              )
+                                            : Colors.grey.shade100,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        note.isPremium
+                                            ? 'प्रीमियम'
+                                            : 'निःशुल्क',
+                                        style: TextStyle(
+                                          color: note.isPremium
+                                              ? AppColors.primary
+                                              : Colors.grey.shade600,
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Price and expand button
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (note.isPremium)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(
+                                      alpha: 0.1,
+                                    ),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    'रु. ${note.price.toInt()}',
+                                    style: TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                isExpanded
+                                    ? Icons.expand_less
+                                    : Icons.expand_more,
+                                color: AppColors.primary,
+                                size: 20,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
+
+                  // Expanded PDF list
+                  if (isExpanded)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(12),
+                          bottomRight: Radius.circular(12),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Container(height: 1, color: Colors.grey.shade200),
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: note.pdfs
+                                  .map(
+                                    (pdf) =>
+                                        _buildPdfItem(context, pdf, note.name),
+                                  )
+                                  .toList(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
-            ),
-        ],
-      ),
+              // Lock icon in top right corner
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: isLocked
+                        ? Colors.grey.shade100
+                        : Colors
+                              .grey
+                              .shade50, // Use grey background for unlocked (matching exam screen)
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Icon(
+                    isLocked ? Icons.lock : Icons.lock_open,
+                    color: isLocked
+                        ? Colors.grey.shade600
+                        : Colors
+                              .grey
+                              .shade600, // Use grey for unlocked (matching exam screen)
+                    size: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildPdfItem(
-    BuildContext context,
-    PDFResponse pdf,
-    bool userHasPremium,
-    String noteName,
-  ) {
+  Widget _buildPdfItem(BuildContext context, PDFResponse pdf, String noteName) {
     return PremiumAccessHelper.wrapWithAccessControl(
       context,
       item: pdf,
@@ -395,177 +443,181 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
           ),
         );
       },
-      child: _buildPdfItemContent(context, pdf, userHasPremium, noteName),
+      child: _buildPdfItemContent(context, pdf, noteName),
     );
   }
 
   Widget _buildPdfItemContent(
     BuildContext context,
     PDFResponse pdf,
-    bool userHasPremium,
     String noteName,
   ) {
-    final userHasAccess = PremiumAccessHelper.hasAccessToItem(context, pdf);
+    return BlocBuilder<PremiumBloc, PremiumState>(
+      builder: (context, state) {
+        // Use the is_locked field directly from API instead of checking premium status
+        final isLocked = pdf.isLocked;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => PdfViewerScreen(
-                topicName: noteName,
-                pdfId: pdf.id,
-                pdfUrl: pdf.downloadUrl,
-                pdfName: pdf.name,
-              ),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: !userHasAccess ? Colors.grey.shade100 : Colors.white,
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: InkWell(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => PdfViewerScreen(
+                    topicName: noteName,
+                    pdfId: pdf.id,
+                    pdfUrl: pdf.downloadUrl,
+                    pdfName: pdf.name,
+                  ),
+                ),
+              );
+            },
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: !userHasAccess
-                  ? Colors.grey.shade300
-                  : AppColors.primary.withValues(alpha: 0.2),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              // PDF icon
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: !userHasAccess
-                      ? Colors.grey.shade200
-                      : Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  Icons.picture_as_pdf_outlined,
-                  color: !userHasAccess
-                      ? Colors.grey.shade600
-                      : Colors.red.shade600,
-                  size: 16,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isLocked ? Colors.grey.shade100 : Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isLocked
+                      ? Colors.grey.shade300
+                      : AppColors.primary.withValues(alpha: 0.2),
+                  width: 1,
                 ),
               ),
-              const SizedBox(width: 12),
-
-              // Content
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      pdf.name,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: !userHasAccess
-                            ? Colors.grey.shade600
-                            : Colors.black87,
-                      ),
+              child: Row(
+                children: [
+                  // PDF icon
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: isLocked
+                          ? Colors.grey.shade200
+                          : Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    const SizedBox(height: 2),
-                    Row(
+                    child: Icon(
+                      Icons.picture_as_pdf_outlined,
+                      color: isLocked
+                          ? Colors.grey.shade600
+                          : Colors.red.shade600,
+                      size: 16,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+
+                  // Content
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.description_outlined,
-                          size: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                        const SizedBox(width: 4),
                         Text(
-                          '${pdf.pageCount} पृष्ठ',
+                          pdf.name,
                           style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: isLocked
+                                ? Colors.grey.shade600
+                                : Colors.black87,
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: pdf.isPremium
-                                ? AppColors.primary.withValues(alpha: 0.1)
-                                : Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            pdf.isPremium ? 'प्रीमियम' : 'निःशुल्क',
-                            style: TextStyle(
-                              color: pdf.isPremium
-                                  ? AppColors.primary
-                                  : Colors.grey.shade600,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 10,
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.description_outlined,
+                              size: 12,
+                              color: Colors.grey.shade600,
                             ),
-                          ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${pdf.pageCount} पृष्ठ',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: pdf.isPremium
+                                    ? AppColors.primary.withValues(alpha: 0.1)
+                                    : Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                pdf.isPremium ? 'प्रीमियम' : 'निःशुल्क',
+                                style: TextStyle(
+                                  color: pdf.isPremium
+                                      ? AppColors.primary
+                                      : Colors.grey.shade600,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-
-              // Action button
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: !userHasAccess
-                      ? Colors.grey.shade200
-                      : AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: IconButton(
-                  onPressed: () {
-                    if (!userHasAccess) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('यो PDF प्रीमियम मात्रका लागि हो।'),
-                        ),
-                      );
-                      return;
-                    }
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => PdfViewerScreen(
-                          topicName: noteName,
-                          pdfId: pdf.id,
-                          pdfUrl: pdf.downloadUrl,
-                          pdfName: pdf.name,
-                        ),
-                      ),
-                    );
-                  },
-                  icon: Icon(
-                    !userHasAccess
-                        ? Icons.lock_outline
-                        : Icons.visibility_outlined,
-                    size: 16,
-                    color: !userHasAccess
-                        ? Colors.grey.shade600
-                        : AppColors.primary,
                   ),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  tooltip: !userHasAccess ? 'लक गरिएको' : 'पढ्नुहोस्',
-                ),
+
+                  // Action button
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: isLocked
+                          ? Colors.grey.shade200
+                          : AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: IconButton(
+                      onPressed: () {
+                        if (isLocked) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('यो PDF लक गरिएको छ।'),
+                            ),
+                          );
+                          return;
+                        }
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => PdfViewerScreen(
+                              topicName: noteName,
+                              pdfId: pdf.id,
+                              pdfUrl: pdf.downloadUrl,
+                              pdfName: pdf.name,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: Icon(
+                        isLocked
+                            ? Icons.lock_outline
+                            : Icons.visibility_outlined,
+                        size: 16,
+                        color: isLocked
+                            ? Colors.grey.shade600
+                            : AppColors.primary,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      tooltip: isLocked ? 'लक गरिएको' : 'पढ्नुहोस्',
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
