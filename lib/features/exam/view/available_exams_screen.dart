@@ -235,13 +235,13 @@ class _AvailableExamsScreenState extends State<AvailableExamsScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Premium/Non-premium icon
+                // Lock status icon
                 Icon(
-                  exam.isPremium ? Icons.lock : Icons.lock_open,
+                  exam.isLocked ? Icons.lock : Icons.lock_open,
                   size: 12,
-                  color: exam.isPremium
-                      ? AppColors.primary
-                      : Colors.grey.shade600,
+                  color: Colors
+                      .grey
+                      .shade600, // Always grey for both locked and unlocked
                 ),
               ],
             ),
@@ -312,11 +312,11 @@ class _AvailableExamsScreenState extends State<AvailableExamsScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        exam.isPremium ? Icons.lock : Icons.lock_open,
+                        exam.isLocked ? Icons.lock : Icons.lock_open,
                         size: 12,
-                        color: exam.isPremium
-                            ? AppColors.primary
-                            : Colors.grey.shade600,
+                        color: Colors
+                            .grey
+                            .shade600, // Always grey for both locked and unlocked
                       ),
                       const SizedBox(width: 3),
                       Text(

@@ -358,10 +358,7 @@ class _MasyaudaSubjectsScreenState extends State<MasyaudaSubjectsScreen> {
                   // Header section
                   InkWell(
                     onTap: () {
-                      if (isLocked) {
-                        _showUpgradeDialog(context, topic.name);
-                        return;
-                      }
+                      // Always allow expansion - don't check isLocked here
                       setState(() {
                         _expanded[topic.id] = !isExpanded;
                       });
@@ -482,12 +479,8 @@ class _MasyaudaSubjectsScreenState extends State<MasyaudaSubjectsScreen> {
                             child: Column(
                               children: topic.pdfs
                                   .map(
-                                    (pdf) => _buildPdfItem(
-                                      context,
-                                      topic.name,
-                                      pdf,
-                                      isLocked,
-                                    ),
+                                    (pdf) =>
+                                        _buildPdfItem(context, topic.name, pdf),
                                   )
                                   .toList(),
                             ),
@@ -534,19 +527,17 @@ class _MasyaudaSubjectsScreenState extends State<MasyaudaSubjectsScreen> {
     BuildContext context,
     String topicName,
     PDFResponse pdf,
-    bool topicLocked,
   ) {
-    return _buildPdfItemContent(context, topicName, pdf, topicLocked);
+    return _buildPdfItemContent(context, topicName, pdf);
   }
 
   Widget _buildPdfItemContent(
     BuildContext context,
     String topicName,
     PDFResponse pdf,
-    bool topicLocked,
   ) {
     // Use the is_locked field directly from API instead of checking premium status
-    final bool locked = pdf.isLocked || topicLocked;
+    final bool locked = pdf.isLocked;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),

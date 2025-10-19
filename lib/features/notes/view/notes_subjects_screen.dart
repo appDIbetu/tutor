@@ -171,10 +171,7 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
                   // Header section
                   InkWell(
                     onTap: () {
-                      if (isLocked) {
-                        _showUpgradeDialog(context, note.name);
-                        return;
-                      }
+                      // Always allow expansion - don't check isLocked here
                       setState(() {
                         _expandedTopics[note.id] = !isExpanded;
                       });
