@@ -248,7 +248,7 @@ class _NotesSubjectsScreenState extends State<NotesSubjectsScreen> {
                                       ),
                                     ),
                                     Text(
-                                      ' | संविधान र कानून',
+                                      ' | ${note.category}',
                                       style: TextStyle(
                                         fontSize: 11,
                                         color: Colors.grey.shade600,

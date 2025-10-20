@@ -182,7 +182,9 @@ class _AvailableExamsScreenState extends State<AvailableExamsScreen> {
                       Clipboard.setData(ClipboardData(text: exam.examId));
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('${exam.examId} क्लिपबोर्डमा कपी भयो'),
+                          content: Text(
+                            '${exam.examId.toUpperCase()} क्लिपबोर्डमा कपी भयो',
+                          ),
                           duration: const Duration(seconds: 2),
                         ),
                       );

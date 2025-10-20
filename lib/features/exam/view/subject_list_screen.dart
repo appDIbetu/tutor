@@ -596,160 +596,186 @@ class _SubjectTile extends StatelessWidget {
       elevation: 2,
       color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header row with icon, title, and premium badge
-            Row(
+      child: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Subject icon
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    _getSubjectIcon(subject.name, false),
-                    color: AppColors.primary,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        subject.name,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
+                // Header row with icon, title, and premium badge
+                Row(
+                  children: [
+                    // Subject icon
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      const SizedBox(height: 2),
-                      Row(
+                      child: Icon(
+                        _getSubjectIcon(subject.name, false),
+                        color: AppColors.primary,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          GestureDetector(
-                            onTap: () {
-                              Clipboard.setData(
-                                ClipboardData(
-                                  text: subject.subjectId.toUpperCase(),
-                                ),
-                              );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    '${subject.subjectId.toUpperCase()} copied to clipboard',
-                                  ),
-                                  duration: const Duration(seconds: 2),
-                                  backgroundColor: AppColors.primary,
-                                ),
-                              );
-                            },
-                            child: Text(
-                              subject.subjectId.toUpperCase(),
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w500,
-                              ),
+                          Text(
+                            subject.name,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87,
                             ),
                           ),
-                          Text(
-                            ' | संविधान र कानून',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey.shade600,
-                            ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  Clipboard.setData(
+                                    ClipboardData(
+                                      text: subject.subjectId.toUpperCase(),
+                                    ),
+                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        '${subject.subjectId.toUpperCase()} copied to clipboard',
+                                      ),
+                                      duration: const Duration(seconds: 2),
+                                      backgroundColor: AppColors.primary,
+                                    ),
+                                  );
+                                },
+                                child: Text(
+                                  subject.subjectId.toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade600,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                ' | ${subject.categoryName}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                    // Premium/Free badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: subject.isPremium
+                            ? AppColors.primary.withValues(alpha: 0.1)
+                            : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        subject.isPremium ? 'प्रीमियम' : 'निःशुल्क',
+                        style: TextStyle(
+                          color: subject.isPremium
+                              ? AppColors.primary
+                              : Colors.grey.shade600,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                // Premium/Free badge
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: subject.isPremium
-                        ? AppColors.primary.withValues(alpha: 0.1)
-                        : Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    subject.isPremium ? 'प्रीमियम' : 'निःशुल्क',
-                    style: TextStyle(
-                      color: subject.isPremium
-                          ? AppColors.primary
-                          : Colors.grey.shade600,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 10,
+
+                const SizedBox(height: 12),
+
+                // Stats row
+                Row(
+                  children: [
+                    _StatItem(
+                      icon: Icons.quiz_outlined,
+                      label: '${subject.numberOfQuestions} प्रश्न',
+                    ),
+                    const SizedBox(width: 16),
+                    _StatItem(
+                      icon: Icons.timer_outlined,
+                      label: formatDuration(
+                        subject.perQsnDuration * subject.numberOfQuestions,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // Action button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: onAttempt,
+                    icon: Icon(
+                      subject.isLocked
+                          ? Icons.lock_outline
+                          : Icons.play_arrow_rounded,
+                      size: 18,
+                    ),
+                    label: Text(
+                      subject.isLocked
+                          ? 'प्रीमियम लिनुहोस्'
+                          : 'अभ्यास गर्नुहोस्',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: 0,
                     ),
                   ),
                 ),
               ],
             ),
-
-            const SizedBox(height: 12),
-
-            // Stats row
-            Row(
-              children: [
-                _StatItem(
-                  icon: Icons.quiz_outlined,
-                  label: '${subject.numberOfQuestions} प्रश्न',
-                ),
-                const SizedBox(width: 16),
-                _StatItem(
-                  icon: Icons.timer_outlined,
-                  label: formatDuration(
-                    subject.perQsnDuration * subject.numberOfQuestions,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            // Action button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: onAttempt,
-                icon: Icon(
-                  subject.isLocked
-                      ? Icons.lock_outline
-                      : Icons.play_arrow_rounded,
-                  size: 18,
-                ),
-                label: Text(
-                  subject.isLocked ? 'प्रीमियम लिनुहोस्' : 'अभ्यास गर्नुहोस्',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  elevation: 0,
-                ),
+          ),
+          // Top-right lock/unlock status icon
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                color: subject.isLocked
+                    ? Colors.grey.shade100
+                    : Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Icon(
+                subject.isLocked ? Icons.lock : Icons.lock_open,
+                size: 12,
+                color: Colors.grey.shade600,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
