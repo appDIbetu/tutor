@@ -307,7 +307,7 @@ class ApiService {
     String subjectId, {
     int startIndex = 0,
     int endIndex = 100,
-    String sortOrder = 'latest',
+    String sortOrder = 'oldest',
   }) async {
     try {
       final headers = await _getHeaders();

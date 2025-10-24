@@ -14,12 +14,15 @@ class ExamStarted extends ExamTakingEvent {
   final int durationInSeconds;
   final double positiveMark;
   final double negativeMark;
+  final bool isSubject; // Add this to distinguish subject practice from exam practice
+  
   const ExamStarted({
     required this.examId,
     required this.questions,
     required this.durationInSeconds,
     required this.positiveMark,
     required this.negativeMark,
+    this.isSubject = false, // Default to false for backward compatibility
   });
 
   @override
@@ -29,6 +32,7 @@ class ExamStarted extends ExamTakingEvent {
     durationInSeconds,
     positiveMark,
     negativeMark,
+    isSubject,
   ];
 }
 

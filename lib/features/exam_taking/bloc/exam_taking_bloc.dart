@@ -31,6 +31,7 @@ class ExamTakingBloc extends Bloc<ExamTakingEvent, ExamTakingState> {
         totalQuestions: event.questions.length,
         positiveMark: event.positiveMark,
         negativeMark: event.negativeMark,
+        isSubject: event.isSubject,
       ),
     );
     _timer?.cancel();
@@ -67,6 +68,9 @@ class ExamTakingBloc extends Bloc<ExamTakingEvent, ExamTakingState> {
     Emitter<ExamTakingState> emit,
   ) async {
     _timer?.cancel();
+
+    // Emit submitting status immediately
+    emit(state.copyWith(status: ExamStatus.submitting));
 
     try {
       // Calculate results locally first
@@ -106,8 +110,8 @@ class ExamTakingBloc extends Bloc<ExamTakingEvent, ExamTakingState> {
         ),
       );
 
-      // Submit to API if examId is available
-      if (state.examId != null) {
+      // Submit to API only if it's NOT a subject practice
+      if (state.examId != null && !state.isSubject) {
         try {
           // Get current user ID
           final userData = await AuthService.getSavedFirebaseUserData();
@@ -158,11 +162,10 @@ class ExamTakingBloc extends Bloc<ExamTakingEvent, ExamTakingState> {
           }
         } catch (e) {
           // Error submitting exam result to API
-          // Don't fail the exam completion if API submission fails
-          // The exam is already completed locally
+          print('Error submitting exam result: $e');
         }
-      } else {
-        // No exam ID available for API submission
+      } else if (state.isSubject) {
+        print('Subject practice completed - no API submission needed');
       }
     } catch (e) {
       // Critical error in exam submission

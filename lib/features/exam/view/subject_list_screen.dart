@@ -22,7 +22,7 @@ Widget _buildList(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.book_outlined, size: 64, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           Text(
             'No subjects available',
             style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
@@ -73,7 +73,7 @@ void _showQuestionRangeDialog(
       return QuestionRangeDialog(
         subject: subject,
         userHasPremium: userHasPremium,
-        onStartPractice: (startIndex, endIndex) {
+        onStartPractice: (startIndex, endIndex, isAnswerMode) {
           Navigator.of(context).pop(); // Close dialog
           Navigator.of(context).push(
             MaterialPageRoute(
@@ -82,6 +82,7 @@ void _showQuestionRangeDialog(
                 questionStartIndex: startIndex,
                 questionEndIndex: endIndex,
                 isSubject: true, // This is a subject, not an exam
+                isAnswerMode: isAnswerMode, // Pass answer mode
               ),
             ),
           );
@@ -94,7 +95,8 @@ void _showQuestionRangeDialog(
 class QuestionRangeDialog extends StatefulWidget {
   final SubjectListResponse subject;
   final bool userHasPremium;
-  final Function(int startIndex, int endIndex) onStartPractice;
+  final Function(int startIndex, int endIndex, bool isAnswerMode)
+  onStartPractice;
 
   const QuestionRangeDialog({
     super.key,
@@ -110,6 +112,7 @@ class QuestionRangeDialog extends StatefulWidget {
 class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
   late int _startIndex;
   late int _endIndex;
+  bool _isAnswerMode = true;
 
   @override
   void initState() {
@@ -150,24 +153,356 @@ class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
           ),
         ],
       ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Total Questions: ${widget.subject.numberOfQuestions}',
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Select question range to practice:',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 20),
-          // Start Question Slider
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.6,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
+              Text(
+                'Total Questions: ${widget.subject.numberOfQuestions}',
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Select question range to practice:',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 8),
+              // Start Question Slider
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Start Question',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _startIndex.toString(),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Slider(
+                    value: _startIndex.toDouble(),
+                    min: 1,
+                    max: widget.subject.numberOfQuestions.toDouble(),
+                    divisions: widget.subject.numberOfQuestions > 1
+                        ? widget.subject.numberOfQuestions - 1
+                        : null,
+                    onChanged: (value) {
+                      setState(() {
+                        _startIndex = value.round();
+                        if (_startIndex > _endIndex) {
+                          _endIndex = _startIndex;
+                        }
+                      });
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // End Question Slider
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'End Question',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _endIndex.toString(),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Slider(
+                    value: _endIndex.toDouble(),
+                    min: _startIndex.toDouble(),
+                    max: widget.subject.numberOfQuestions.toDouble(),
+                    divisions:
+                        (widget.subject.numberOfQuestions - _startIndex) > 0
+                        ? widget.subject.numberOfQuestions - _startIndex
+                        : null,
+                    onChanged: (value) {
+                      setState(() {
+                        _endIndex = value.round();
+                      });
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Mode Selector
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Mode Selector',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _isAnswerMode = true;
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 8,
+                                horizontal: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _isAnswerMode
+                                    ? AppColors.primary
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: _isAnswerMode
+                                      ? AppColors.primary
+                                      : Colors.grey.shade300,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.visibility,
+                                    size: 16,
+                                    color: _isAnswerMode
+                                        ? Colors.white
+                                        : Colors.grey.shade600,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Read',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: _isAnswerMode
+                                          ? Colors.white
+                                          : Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _isAnswerMode = false;
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 8,
+                                horizontal: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: !_isAnswerMode
+                                    ? AppColors.primary
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: !_isAnswerMode
+                                      ? AppColors.primary
+                                      : Colors.grey.shade300,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.edit,
+                                    size: 16,
+                                    color: !_isAnswerMode
+                                        ? Colors.white
+                                        : Colors.grey.shade600,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Practice',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: !_isAnswerMode
+                                          ? Colors.white
+                                          : Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _isAnswerMode
+                          ? 'You will view questions with correct answers shown'
+                          : 'You will practice questions with answer selection',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: AppColors.primary,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'You will practice questions $_startIndex to $_endIndex (${_endIndex - _startIndex + 1} questions)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            widget.onStartPractice(
+              _startIndex - 1, // Convert start to 0-based
+              _endIndex, // Keep end as 1-based for inclusive range
+              _isAnswerMode, // Pass answer mode
+            );
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+          ),
+          child: Text(_isAnswerMode ? 'पढ्नुहोस्' : 'अभ्यास सुरु गर्नुहोस्'),
+        ),
+      ],
+    );
+    /*
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(
+        children: [
+          Icon(Icons.quiz_outlined, color: AppColors.primary, size: 28),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              '${widget.subject.name}',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.6,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Total Questions: ${widget.subject.numberOfQuestions}',
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Select question range to practice:',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 8),
+              // Start Question Slider
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
@@ -231,7 +566,7 @@ class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
                 ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 8),
           // End Question Slider
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -268,7 +603,7 @@ class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
                   value: _endIndex.toDouble(),
                   min: _startIndex.toDouble(),
                   max: widget.subject.numberOfQuestions.toDouble(),
-                  divisions: widget.subject.numberOfQuestions - _startIndex,
+                  divisions: (widget.subject.numberOfQuestions - _startIndex) > 0 ? widget.subject.numberOfQuestions - _startIndex : null,
                   activeColor: AppColors.primary,
                   inactiveColor: Colors.grey.shade300,
                   onChanged: (value) {
@@ -300,7 +635,136 @@ class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
                 ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
+
+          // Mode Selector
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Mode:',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _isAnswerMode = true;
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 8,
+                            horizontal: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _isAnswerMode
+                                ? AppColors.primary
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: _isAnswerMode
+                                  ? AppColors.primary
+                                  : Colors.grey.shade300,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.visibility,
+                                size: 16,
+                                color: _isAnswerMode
+                                    ? Colors.white
+                                    : Colors.grey.shade600,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Answer Mode',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: _isAnswerMode
+                                      ? Colors.white
+                                      : Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _isAnswerMode = false;
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 8,
+                            horizontal: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: !_isAnswerMode
+                                ? AppColors.primary
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: !_isAnswerMode
+                                  ? AppColors.primary
+                                  : Colors.grey.shade300,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.edit,
+                                size: 16,
+                                color: !_isAnswerMode
+                                    ? Colors.white
+                                    : Colors.grey.shade600,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Practice',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: !_isAnswerMode
+                                      ? Colors.white
+                                      : Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -313,7 +777,7 @@ class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'You will practice questions $_startIndex to $_endIndex (${_endIndex - _startIndex + 1} questions)',
+                    'You will ${_isAnswerMode ? 'view' : 'practice'} questions $_startIndex to $_endIndex (${_endIndex - _startIndex + 1} questions)',
                     style: TextStyle(
                       fontSize: 12,
                       color: AppColors.primary,
@@ -324,7 +788,7 @@ class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
               ],
             ),
           ),
-        ],
+        ),
       ),
       actions: [
         TextButton(
@@ -334,18 +798,20 @@ class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
         ElevatedButton(
           onPressed: () {
             widget.onStartPractice(
-              _startIndex - 1,
-              _endIndex - 1,
-            ); // Convert to 0-based index
+              _startIndex - 1, // Convert start to 0-based
+              _endIndex, // Keep end as 1-based for inclusive range
+              _isAnswerMode, // Pass answer mode
+            );
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
           ),
-          child: const Text('अभ्यास सुरु गर्नुहोस्'),
+          child: Text(_isAnswerMode ? 'पढ्नुहोस्' : 'अभ्यास सुरु गर्नुहोस्'),
         ),
       ],
     );
+    */
   }
 }
 
@@ -436,7 +902,7 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
                               size: 64,
                               color: Colors.grey.shade400,
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 8),
                             Text(
                               'Error loading subjects',
                               style: TextStyle(
@@ -498,7 +964,7 @@ void _showUpgradeDialog(BuildContext context, String subjectName) {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 8),
 
           // Lock icon
           Container(
@@ -510,7 +976,7 @@ void _showUpgradeDialog(BuildContext context, String subjectName) {
             ),
             child: Icon(Icons.lock_outline, size: 32, color: AppColors.primary),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
 
           // Title
           Text(
@@ -529,7 +995,7 @@ void _showUpgradeDialog(BuildContext context, String subjectName) {
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 8),
 
           // Upgrade button
           SizedBox(
@@ -571,7 +1037,7 @@ void _showUpgradeDialog(BuildContext context, String subjectName) {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
         ],
       ),
     ),
@@ -700,7 +1166,7 @@ class _SubjectTile extends StatelessWidget {
                   ],
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
 
                 // Stats row
                 Row(
@@ -719,7 +1185,7 @@ class _SubjectTile extends StatelessWidget {
                   ],
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
 
                 // Action button
                 SizedBox(
@@ -1288,7 +1754,7 @@ class SubjectService {
 class QuestionRangeDialog extends StatefulWidget {
   final Subject subject;
   final bool userHasPremium;
-  final Function(int startIndex, int endIndex) onStartPractice;
+  final Function(int startIndex, int endIndex, bool isAnswerMode) onStartPractice;
 
   const QuestionRangeDialog({
     super.key,
@@ -1304,6 +1770,7 @@ class QuestionRangeDialog extends StatefulWidget {
 class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
   late int _startIndex;
   late int _endIndex;
+  bool _isAnswerMode = true;
   final int _maxQuestionsForPremium = 20; // Maximum for premium subjects
 
   @override
@@ -1344,9 +1811,329 @@ class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
 
     return AlertDialog(
       title: Text('प्रश्नको दायरा छान्नुहोस्'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.6,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${widget.subject.name} - कुल ${totalQuestions} प्रश्न',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'अधिकतम ${maxAllowed} प्रश्न अभ्यास गर्न सकिन्छ',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'अभ्यास गर्न चाहेको प्रश्नको दायरा छान्नुहोस्:',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 8),
+              // Start Question Slider
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'सुरुको प्रश्न',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _startIndex.toString(),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Slider(
+                    value: _startIndex.toDouble(),
+                    min: 1,
+                    max: maxAllowed.toDouble(),
+                    divisions: maxAllowed - 1,
+                    onChanged: (value) {
+                      setState(() {
+                        _startIndex = value.round();
+                        if (_startIndex > _endIndex) {
+                          _endIndex = _startIndex;
+                        }
+                      });
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // End Question Slider
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'अन्तिम प्रश्न',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _endIndex.toString(),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Slider(
+                    value: _endIndex.toDouble(),
+                    min: _startIndex.toDouble(),
+                    max: maxAllowed.toDouble(),
+                    divisions: maxAllowed - _startIndex,
+                    onChanged: (value) {
+                      setState(() {
+                        _endIndex = value.round();
+                      });
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Mode Selector
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'मोड छान्नुहोस्',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _isAnswerMode = false;
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 8,
+                                horizontal: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: !_isAnswerMode
+                                    ? AppColors.primary
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: !_isAnswerMode
+                                      ? AppColors.primary
+                                      : Colors.grey.shade300,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.edit,
+                                    size: 16,
+                                    color: !_isAnswerMode
+                                        ? Colors.white
+                                        : Colors.grey.shade600,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'अभ्यास',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: !_isAnswerMode
+                                          ? Colors.white
+                                          : Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _isAnswerMode = true;
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 8,
+                                horizontal: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _isAnswerMode
+                                    ? AppColors.primary
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: _isAnswerMode
+                                      ? AppColors.primary
+                                      : Colors.grey.shade300,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.visibility,
+                                    size: 16,
+                                    color: _isAnswerMode
+                                        ? Colors.white
+                                        : Colors.grey.shade600,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'पढ्नुहोस्',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: _isAnswerMode
+                                          ? Colors.white
+                                          : Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _isAnswerMode
+                          ? 'तपाईंले प्रश्नहरू सही उत्तरहरूसहित हेर्नुहुनेछ'
+                          : 'तपाईंले प्रश्नहरूको उत्तर छानेर अभ्यास गर्नुहुनेछ',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: AppColors.primary, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'तपाईंले प्रश्न $_startIndex देखि $_endIndex सम्म अभ्यास गर्नुहुनेछ (${_endIndex - _startIndex + 1} प्रश्न)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('रद्द गर्नुहोस्'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            widget.onStartPractice(
+              _startIndex - 1,  // Convert start to 0-based
+              _endIndex,        // Keep end as 1-based for inclusive range
+              _isAnswerMode,    // Pass answer mode
+            );
+          },
+          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+          child: Text(_isAnswerMode ? 'पढ्नुहोस्' : 'अभ्यास सुरु गर्नुहोस्'),
+        ),
+      ],
+    );
+    /*
+    final totalQuestions = widget.subject.numberOfQuestions;
+    
+    // Check if subject is locked from API
+    final isSubjectLocked = widget.subject.isLocked;
+    
+    // If subject is locked: only first 5 questions can be practiced
+    // If subject is unlocked: all questions can be practiced
+    final maxAllowed = isSubjectLocked
+        ? (totalQuestions < 5 ? totalQuestions : 5) // Max 5 questions for locked subjects
+        : totalQuestions; // All questions for unlocked subjects
+
+    return AlertDialog(
+      title: Text('प्रश्नको दायरा छान्नुहोस्'),
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.6,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
           Text(
             '${widget.subject.name} - कुल ${totalQuestions} प्रश्न',
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
@@ -1364,7 +2151,7 @@ class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
               fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
 
           // Start Index
           Row(
@@ -1457,7 +2244,7 @@ class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
               ),
             ),
           ],
-        ],
+        ),
       ),
       actions: [
         TextButton(
@@ -1467,15 +2254,17 @@ class _QuestionRangeDialogState extends State<QuestionRangeDialog> {
         ElevatedButton(
           onPressed: () {
             widget.onStartPractice(
-              _startIndex - 1,
-              _endIndex - 1,
-            ); // Convert to 0-based index
+              _startIndex - 1,  // Convert start to 0-based
+              _endIndex,        // Keep end as 1-based for inclusive range
+              _isAnswerMode,    // Pass answer mode
+            );
           },
           style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-          child: const Text('अभ्यास सुरु गर्नुहोस्'),
+          child: Text(_isAnswerMode ? 'पढ्नुहोस्' : 'अभ्यास सुरु गर्नुहोस्'),
         ),
       ],
     );
+    */
   }
 }
 */

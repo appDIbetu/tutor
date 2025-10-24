@@ -10,10 +10,14 @@ import 'exam_result_screen.dart';
 import '../widgets/question_options.dart';
 
 class ExamTakingScreen extends StatelessWidget {
+  // Static variable to track submit state
+  static bool _isSubmitClicked = false;
   final String examId;
   final int? questionStartIndex;
   final int? questionEndIndex;
   final bool isSubject; // New parameter to distinguish between subject and exam
+  final bool
+  isAnswerMode; // New parameter for answer mode (read-only with answers shown)
 
   const ExamTakingScreen({
     super.key,
@@ -21,10 +25,14 @@ class ExamTakingScreen extends StatelessWidget {
     this.questionStartIndex,
     this.questionEndIndex,
     this.isSubject = false, // Default to false for backward compatibility
+    this.isAnswerMode = false, // Default to false for practice mode
   });
 
   @override
   Widget build(BuildContext context) {
+    final startIndex = questionStartIndex;
+    final endIndex = questionEndIndex;
+
     if (isSubject) {
       // Handle subject questions
       return FutureBuilder<List<dynamic>>(
@@ -131,6 +139,7 @@ class ExamTakingScreen extends StatelessWidget {
                       subjectDetails.posMarking, // Use actual positive marking
                   negativeMark:
                       subjectDetails.negMarking, // Use actual negative marking
+                  isSubject: true, // This is subject practice
                 ),
               ),
             child: BlocBuilder<ExamTakingBloc, ExamTakingState>(
@@ -154,6 +163,7 @@ class ExamTakingScreen extends StatelessWidget {
                           questions: examQuestions,
                           positiveMark: subjectDetails.posMarking,
                           negativeMark: subjectDetails.negMarking,
+                          isSubject: true, // This is subject practice
                         ),
                       );
                     },
@@ -172,7 +182,13 @@ class ExamTakingScreen extends StatelessWidget {
                         style: TextStyle(color: Colors.white),
                       ),
                     ),
-                    body: const _ScrollableQuestionsView(),
+                    body: _ScrollableQuestionsView(
+                      isSubject: isSubject,
+                      isAnswerMode: isAnswerMode,
+                      examId: examId,
+                      questionStartIndex: startIndex ?? 0,
+                      questionEndIndex: endIndex ?? 0,
+                    ),
                   );
                 }
 
@@ -309,7 +325,13 @@ class ExamTakingScreen extends StatelessWidget {
                         style: const TextStyle(color: Colors.white),
                       ),
                     ),
-                    body: const _ScrollableQuestionsView(),
+                    body: _ScrollableQuestionsView(
+                      isSubject: isSubject,
+                      isAnswerMode: isAnswerMode,
+                      examId: examId,
+                      questionStartIndex: startIndex ?? 0,
+                      questionEndIndex: endIndex ?? 0,
+                    ),
                   );
                 }
 
@@ -347,7 +369,19 @@ class ExamTakingScreen extends StatelessWidget {
 }
 
 class _ScrollableQuestionsView extends StatefulWidget {
-  const _ScrollableQuestionsView();
+  final bool isSubject;
+  final bool isAnswerMode;
+  final String examId;
+  final int questionStartIndex;
+  final int questionEndIndex;
+
+  const _ScrollableQuestionsView({
+    required this.isSubject,
+    required this.isAnswerMode,
+    required this.examId,
+    required this.questionStartIndex,
+    required this.questionEndIndex,
+  });
 
   @override
   State<_ScrollableQuestionsView> createState() =>
@@ -395,7 +429,8 @@ class _ScrollableQuestionsViewState extends State<_ScrollableQuestionsView> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     OutlinedButton.icon(
-                      onPressed: () => _openQuestionBoardSheet(context),
+                      onPressed: () =>
+                          _openQuestionBoardSheet(context, widget.isAnswerMode),
                       icon: const Icon(Icons.grid_view, size: 16),
                       label: const Text('Question Board'),
                       style: OutlinedButton.styleFrom(
@@ -407,17 +442,58 @@ class _ScrollableQuestionsViewState extends State<_ScrollableQuestionsView> {
                         ),
                       ),
                     ),
-                    TextButton.icon(
-                      onPressed: () => _openInstructionsSheet(context),
-                      icon: const Icon(Icons.info_outline, size: 16),
-                      label: const Text('instructions'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.grey,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 8,
-                        ),
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Answer Mode Switch (only show for subjects)
+                        if (widget.isSubject) ...[
+                          // Mode chip removed as requested
+                        ],
+                        if (!widget.isAnswerMode) ...[
+                          TextButton.icon(
+                            onPressed: () => _openInstructionsSheet(context),
+                            icon: const Icon(Icons.info_outline, size: 16),
+                            label: const Text('instructions'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.grey,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 8,
+                              ),
+                            ),
+                          ),
+                        ] else ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.quiz,
+                                  size: 16,
+                                  color: Colors.grey.shade600,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${questions.length} Questions',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
@@ -431,6 +507,7 @@ class _ScrollableQuestionsViewState extends State<_ScrollableQuestionsView> {
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                   itemCount: questions.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 16),
+                  physics: const BouncingScrollPhysics(),
                   itemBuilder: (context, qIndex) {
                     final q = questions[qIndex];
 
@@ -508,6 +585,8 @@ class _ScrollableQuestionsViewState extends State<_ScrollableQuestionsView> {
                                           ),
                                         );
                                       },
+                                      correctAnswerIndex: q.correctAnswerIndex,
+                                      isAnswerMode: widget.isAnswerMode,
                                     );
                                   },
                                 ),
@@ -531,7 +610,24 @@ class _ScrollableQuestionsViewState extends State<_ScrollableQuestionsView> {
                                     ),
                                     TextButton(
                                       onPressed: () {
-                                        // Hint logic placeholder
+                                        if (q.explanation != null &&
+                                            q.explanation!.isNotEmpty) {
+                                          _showHintDialog(
+                                            context,
+                                            q.explanation!,
+                                          );
+                                        } else {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'No hint available for this question',
+                                              ),
+                                              duration: Duration(seconds: 2),
+                                            ),
+                                          );
+                                        }
                                       },
                                       style: TextButton.styleFrom(
                                         foregroundColor: Colors.grey,
@@ -570,36 +666,68 @@ class _ScrollableQuestionsViewState extends State<_ScrollableQuestionsView> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              BlocBuilder<ExamTakingBloc, ExamTakingState>(
-                buildWhen: (p, c) => p.remainingTime != c.remainingTime,
-                builder: (context, state) {
-                  return Row(
-                    children: [
-                      Icon(
-                        Icons.timer_outlined,
-                        color: Colors.grey.shade600,
-                        size: 14,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _formatDuration(state.remainingTime),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+              if (!widget.isAnswerMode) ...[
+                BlocBuilder<ExamTakingBloc, ExamTakingState>(
+                  buildWhen: (p, c) => p.remainingTime != c.remainingTime,
+                  builder: (context, state) {
+                    return Row(
+                      children: [
+                        Icon(
+                          Icons.timer_outlined,
                           color: Colors.grey.shade600,
+                          size: 14,
                         ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-              ElevatedButton(
-                onPressed: () => _showSubmitConfirmationDialog(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+                        const SizedBox(width: 6),
+                        Text(
+                          _formatDuration(state.remainingTime),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
-                child: const Text('Submit Test'),
-              ),
+              ] else ...[
+                Row(
+                  children: [
+                    Icon(
+                      Icons.visibility,
+                      color: Colors.grey.shade600,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Reading Mode',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              if (!widget.isAnswerMode) ...[
+                ElevatedButton(
+                  onPressed: () => _showSubmitConfirmationDialog(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                  ),
+                  child: const Text('Submit Test'),
+                ),
+              ] else ...[
+                ElevatedButton.icon(
+                  onPressed: () => _switchToPracticeMode(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                  ),
+                  icon: const Icon(Icons.edit, size: 16),
+                  label: const Text('Practice Mode'),
+                ),
+              ],
             ],
           ),
         ),
@@ -607,7 +735,7 @@ class _ScrollableQuestionsViewState extends State<_ScrollableQuestionsView> {
     );
   }
 
-  void _openQuestionBoardSheet(BuildContext context) {
+  void _openQuestionBoardSheet(BuildContext context, bool isAnswerMode) {
     final state = context.read<ExamTakingBloc>().state;
     final attempted = state.selectedAnswers.length;
     final total = state.questions.length;
@@ -641,18 +769,20 @@ class _ScrollableQuestionsViewState extends State<_ScrollableQuestionsView> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    _legendDot(color: Colors.green),
-                    const SizedBox(width: 6),
-                    Text('Attempted ($attempted)'),
-                    const SizedBox(width: 16),
-                    _legendDot(color: Colors.grey.shade300),
-                    const SizedBox(width: 6),
-                    Text('Unattempted ($unattempted)'),
-                  ],
-                ),
-                const SizedBox(height: 12),
+                if (!isAnswerMode) ...[
+                  Row(
+                    children: [
+                      _legendDot(color: Colors.green),
+                      const SizedBox(width: 6),
+                      Text('Attempted ($attempted)'),
+                      const SizedBox(width: 16),
+                      _legendDot(color: Colors.grey.shade300),
+                      const SizedBox(width: 6),
+                      Text('Unattempted ($unattempted)'),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 Expanded(
                   child: GridView.builder(
                     gridDelegate:
@@ -705,40 +835,6 @@ class _ScrollableQuestionsViewState extends State<_ScrollableQuestionsView> {
     );
   }
 
-  void _openInstructionsSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) {
-        return const SafeArea(
-          child: Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Instructions',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                SizedBox(height: 12),
-                Text('1. Read each question carefully.'),
-                Text('2. Select the most appropriate option.'),
-                Text('3. Use the Question Board to jump across questions.'),
-                Text('4. Submit the test when you are done.'),
-                SizedBox(height: 8),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   Widget _legendDot({required Color color}) {
     return Container(
       width: 12,
@@ -782,7 +878,9 @@ class _ScrollableQuestionsViewState extends State<_ScrollableQuestionsView> {
     final attempted = state.selectedAnswers.length;
     final total = state.questions.length;
     final unattempted = total - attempted;
-    bool isSubmitClicked = false;
+    
+    // Reset the global submit state
+    ExamTakingScreen._isSubmitClicked = false;
 
     showDialog(
       context: context,
@@ -797,6 +895,17 @@ class _ScrollableQuestionsViewState extends State<_ScrollableQuestionsView> {
                 final currentState = snapshot.data ?? state;
                 final isSubmitting =
                     currentState.status == ExamStatus.completed;
+                final isSubmittingInProgress =
+                    currentState.status == ExamStatus.submitting;
+
+                // Update local state when bloc state changes
+                if (isSubmittingInProgress && !ExamTakingScreen._isSubmitClicked) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    setState(() {
+                      ExamTakingScreen._isSubmitClicked = true;
+                    });
+                  });
+                }
 
                 // Close dialog when exam is completed
                 if (isSubmitting) {
@@ -982,24 +1091,29 @@ class _ScrollableQuestionsViewState extends State<_ScrollableQuestionsView> {
                   actions: [
                     if (!isSubmitting) ...[
                       TextButton(
-                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        onPressed: ExamTakingScreen._isSubmitClicked
+                            ? null
+                            : () => Navigator.of(dialogContext).pop(),
                         child: const Text('Cancel'),
                       ),
                       ElevatedButton(
-                        onPressed: isSubmitClicked
+                        onPressed: ExamTakingScreen._isSubmitClicked
                             ? null
                             : () {
                                 setState(() {
-                                  isSubmitClicked = true;
+                                  ExamTakingScreen._isSubmitClicked = true;
                                 });
                                 bloc.add(ExamSubmitted());
                               },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
+                          backgroundColor: ExamTakingScreen._isSubmitClicked
+                              ? Colors.grey.shade400
+                              : AppColors.primary,
+                          foregroundColor: Colors.white,
                         ),
-                        child: Text(
-                          isSubmitClicked ? 'Submitting...' : 'Submit',
-                        ),
+                        child: ExamTakingScreen._isSubmitClicked
+                            ? const Text('Submitting...')
+                            : const Text('Submit'),
                       ),
                     ],
                   ],
@@ -1007,6 +1121,109 @@ class _ScrollableQuestionsViewState extends State<_ScrollableQuestionsView> {
               },
             );
           },
+        );
+      },
+    );
+  }
+
+  void _switchToPracticeMode(BuildContext context) {
+    // Navigate to practice mode for the same questions
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => ExamTakingScreen(
+          examId: widget.examId,
+          questionStartIndex: widget.questionStartIndex,
+          questionEndIndex: widget.questionEndIndex,
+          isSubject: widget.isSubject,
+          isAnswerMode: false, // Switch to practice mode
+        ),
+      ),
+    );
+  }
+
+  void _openInstructionsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) {
+        return const SafeArea(
+          child: Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Instructions',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                SizedBox(height: 12),
+                Text('1. Read each question carefully.'),
+                Text('2. Select the most appropriate option.'),
+                Text('3. Use the Question Board to jump across questions.'),
+                Text('4. Submit the test when you are done.'),
+                SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showHintDialog(BuildContext context, String explanation) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.lightbulb_outline,
+                      color: Colors.orange,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Hint & Explanation',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(explanation, style: const TextStyle(fontSize: 16)),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                    ),
+                    child: const Text('Got it'),
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );

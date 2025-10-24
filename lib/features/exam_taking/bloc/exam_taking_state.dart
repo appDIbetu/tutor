@@ -1,6 +1,6 @@
 part of 'exam_taking_bloc.dart';
 
-enum ExamStatus { initial, inProgress, completed }
+enum ExamStatus { initial, inProgress, submitting, completed }
 
 class ExamTakingState extends Equatable {
   final ExamStatus status;
@@ -11,6 +11,8 @@ class ExamTakingState extends Equatable {
   selectedAnswers; // Map<questionIndex, selectedOptionIndex>
   final int remainingTime;
   final int score; // raw number of correct answers when simple scoring is used
+  final bool
+  isSubject; // Add this to distinguish subject practice from exam practice
 
   // --- Result analytics ---
   final int totalQuestions;
@@ -31,6 +33,7 @@ class ExamTakingState extends Equatable {
     this.selectedAnswers = const {},
     this.remainingTime = 0,
     this.score = 0,
+    this.isSubject = false, // Default to false for backward compatibility
     this.totalQuestions = 0,
     this.correctCount = 0,
     this.wrongCount = 0,
@@ -61,6 +64,7 @@ class ExamTakingState extends Equatable {
     Map<int, int>? selectedAnswers,
     int? remainingTime,
     int? score,
+    bool? isSubject,
     int? totalQuestions,
     int? correctCount,
     int? wrongCount,
@@ -79,6 +83,7 @@ class ExamTakingState extends Equatable {
       selectedAnswers: selectedAnswers ?? this.selectedAnswers,
       remainingTime: remainingTime ?? this.remainingTime,
       score: score ?? this.score,
+      isSubject: isSubject ?? this.isSubject,
       totalQuestions: totalQuestions ?? this.totalQuestions,
       correctCount: correctCount ?? this.correctCount,
       wrongCount: wrongCount ?? this.wrongCount,
@@ -100,6 +105,7 @@ class ExamTakingState extends Equatable {
     selectedAnswers,
     remainingTime,
     score,
+    isSubject,
     totalQuestions,
     correctCount,
     wrongCount,
